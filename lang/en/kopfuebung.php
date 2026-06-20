@@ -1,0 +1,55 @@
+<?php
+// This file is part of Moodle - http://moodle.org/
+
+defined('MOODLE_INTERNAL') || die();
+
+$string['pluginname'] = 'Kopfübung';
+$string['answerssubmitted'] = 'Answers submitted';
+$string['modulename'] = 'Kopfübung';
+$string['modulenameplural'] = 'Kopfübungen';
+$string['kopfuebung:addinstance'] = 'Add a new Kopfübung activity';
+$string['kopfuebung:view'] = 'View Kopfübung';
+$string['kopfuebung:managequestions'] = 'Manage Kopfübung questions';
+$string['kopfuebung:startactivity'] = 'Start or stop Kopfübung activity';
+$string['kopfuebung:attempt'] = 'Attempt Kopfübung';
+$string['kopfuebung:viewreports'] = 'View Kopfübung reports';
+$string['privacy:metadata'] = 'The Kopfübung plugin stores student attempts and answers.';
+$string['privacy:metadata:kopfuebung_answers'] = 'Stores answers submitted by students.';
+$string['privacy:metadata:kopfuebung_answers:answertext'] = 'The text entered by the student.';
+$string['privacy:metadata:kopfuebung_answers:answeredtime'] = 'The time the answer was saved.';
+$string['privacy:metadata:kopfuebung_attempts'] = 'Stores each student attempt.';
+$string['privacy:metadata:kopfuebung_attempts:status'] = 'The status of the attempt.';
+$string['privacy:metadata:kopfuebung_attempts:timefinished'] = 'The time the attempt was finished.';
+$string['privacy:metadata:kopfuebung_attempts:timestarted'] = 'The time the attempt was started.';
+$string['privacy:metadata:kopfuebung_attempts:userid'] = 'The user who made the attempt.';
+$string['activityisclosed'] = 'This Kopfübung is not active yet.';
+$string['activityisopen'] = 'This Kopfübung is active.';
+$string['addquestion'] = 'Add question';
+$string['addselectedquestions'] = 'Add selected questions';
+$string['allcategories'] = 'All categories';
+$string['answer'] = 'Answer';
+$string['answersaved'] = 'Your answers were saved.';
+$string['attemptactivity'] = 'Attempt activity';
+$string['availablequestions'] = 'Available questions';
+$string['finishattempt'] = 'Finish attempt';
+$string['managequestions'] = 'Manage questions';
+$string['missingquestions'] = 'No questions have been selected yet.';
+$string['noavailablequestions'] = 'No available question-bank questions were found for this course.';
+$string['preview'] = 'Preview';
+$string['questionid'] = 'Question ID';
+$string['questionid_help'] = 'Enter the ID of a question from the Moodle question bank. A richer question selector can be added in the next implementation step.';
+$string['questiontag'] = 'Tracking tag';
+$string['questiontag_help'] = 'Use a short subject-area tag such as algebra, grammar, dates, or vocabulary.';
+$string['questiontagoptional'] = 'Optional tag for selected questions';
+$string['remainingtime'] = 'Remaining time';
+$string['report'] = 'Report';
+$string['selectedquestions'] = 'Selected questions';
+$string['startactivity'] = 'Start activity';
+$string['stopactivity'] = 'Stop activity';
+$string['studentprogressbytag'] = 'Student progress by tag';
+$string['studentsattempted'] = 'Students attempted';
+$string['submitanswers'] = 'Submit answers';
+$string['timelimit'] = 'Time limit';
+$string['timelimit_help'] = 'The time students have to answer the selected questions after they start their attempt.';
+$string['timeexpired'] = 'The time limit has expired.';
+$string['unknownquestion'] = 'Question {$a}';

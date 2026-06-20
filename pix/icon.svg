@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Kopfübung" xmlns="http://www.w3.org/2000/svg">
+  <rect x="3" y="3" width="18" height="18" rx="3" fill="#f6f7fb" stroke="#536071" stroke-width="1.5"/>
+  <path d="M8 8h8M8 12h5M8 16h7" stroke="#2f6f5e" stroke-width="1.7" stroke-linecap="round"/>
+  <circle cx="17" cy="16" r="2" fill="#c54545"/>
+</svg>
