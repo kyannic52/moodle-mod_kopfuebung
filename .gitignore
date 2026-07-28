@@ -1,0 +1,2 @@
+# Binary documents should not be committed to this plugin repository.
+*.pdf

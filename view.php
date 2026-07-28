@@ -27,6 +27,13 @@ $statusstring = $kopfuebung->activitystate ? get_string('activityisopen', 'kopfu
 echo $OUTPUT->notification($statusstring, $statusclass);
 
 $buttons = [];
+if (has_capability('mod/kopfuebung:viewoverview', context_course::instance($course->id))) {
+    $buttons[] = $OUTPUT->single_button(
+        new moodle_url('/mod/kopfuebung/overview.php', ['id' => $course->id]),
+        get_string('courseoverview', 'kopfuebung'),
+        'get'
+    );
+}
 if (has_capability('mod/kopfuebung:managequestions', $context)) {
     $buttons[] = $OUTPUT->single_button(
         new moodle_url('/mod/kopfuebung/manage.php', ['id' => $cm->id]),

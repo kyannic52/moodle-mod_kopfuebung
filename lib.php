@@ -80,3 +80,41 @@ function kopfuebung_get_coursemodule_info($coursemodule) {
 
     return $info;
 }
+
+/**
+ * Add the course-wide Kopfuebung result matrix to course navigation.
+ *
+ * @param navigation_node $navigation
+ * @param stdClass $course
+ * @param context_course $context
+ */
+function kopfuebung_extend_navigation_course(
+    navigation_node $navigation,
+    stdClass $course,
+    context_course $context
+): void {
+    if (!has_capability('mod/kopfuebung:viewoverview', $context)) {
+        return;
+    }
+
+    $modinfo = get_fast_modinfo($course);
+    $hasvisibleactivity = false;
+    foreach ($modinfo->get_instances_of('kopfuebung') as $cm) {
+        if ($cm->uservisible) {
+            $hasvisibleactivity = true;
+            break;
+        }
+    }
+    if (!$hasvisibleactivity) {
+        return;
+    }
+
+    $navigation->add(
+        get_string('courseoverview', 'kopfuebung'),
+        new moodle_url('/mod/kopfuebung/overview.php', ['id' => $course->id]),
+        navigation_node::TYPE_CUSTOM,
+        null,
+        'kopfuebungoverview',
+        new pix_icon('icon', '', 'mod_kopfuebung')
+    );
+}

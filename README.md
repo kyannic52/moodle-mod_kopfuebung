@@ -19,7 +19,7 @@ Then visit **Site administration > Notifications** or run Moodle's CLI upgrade c
 - Teachers start and stop the activity manually.
 - Students can open the activity while it is active and answer the selected questions within the configured time.
 - Reports aggregate submitted answers by tracking tag.
-
-## Next Implementation Layer
-
-This scaffold stores selected Moodle question IDs and displays the question text, but it does not yet run Moodle's full question engine for automatic grading, question behaviours, variants, or detailed response analysis. The next step is to replace the free-text answer capture in `attempt.php` with Moodle question engine usage.
+- Attempts use Moodle's question engine for rendering, response processing, and grading.
+- Courses containing a Kopfübung receive a course-navigation link to a ten-row diagnostic overview.
+- Students see their own correct, partially correct, incorrect, and unanswered results across all visible Kopfübungen.
+- Teachers can label the ten recurring question positions by topic and inspect an enrolled participant's matrix.

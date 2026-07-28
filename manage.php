@@ -131,6 +131,20 @@ if ($addquestionids) {
     require_sesskey();
 
     $availablequestions = kopfuebung_get_available_questions($course, $context, [], $categoryid, $search);
+    $currentcount = $DB->count_records('kopfuebung_questions', ['kopfuebungid' => $kopfuebung->id]);
+    $newquestionids = [];
+    foreach (array_unique($addquestionids) as $addquestionid) {
+        if (isset($availablequestions[$addquestionid]) && !$DB->record_exists('kopfuebung_questions', [
+            'kopfuebungid' => $kopfuebung->id,
+            'questionid' => $addquestionid,
+        ])) {
+            $newquestionids[] = $addquestionid;
+        }
+    }
+    if ($currentcount + count($newquestionids) > 10) {
+        throw new moodle_exception('maximumquestions', 'kopfuebung', $PAGE->url);
+    }
+
     foreach ($addquestionids as $addquestionid) {
         if (!isset($availablequestions[$addquestionid])) {
             throw new moodle_exception('invalidrecord', 'error', $PAGE->url, 'question');
