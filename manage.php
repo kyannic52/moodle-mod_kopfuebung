@@ -2,10 +2,12 @@
 // This file is part of Moodle - http://moodle.org/
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/locallib.php');
 
 $id = required_param('id', PARAM_INT);
 $delete = optional_param('delete', 0, PARAM_INT);
 $addquestionids = optional_param_array('questionids', [], PARAM_INT);
+$questionpositions = optional_param_array('questionpositions', [], PARAM_INT);
 $categoryid = optional_param('categoryid', 0, PARAM_INT);
 $search = optional_param('qsearch', '', PARAM_TEXT);
 $questiontag = optional_param('tag', '', PARAM_TAG);
@@ -14,7 +16,6 @@ $questiontag = optional_param('tag', '', PARAM_TAG);
  * Return latest ready question-bank questions available in this activity/course.
  *
  * @param stdClass $course
- * @param context_module $modulecontext
  * @param int[] $excludedids
  * @param int $categoryid
  * @param string $search
@@ -22,18 +23,13 @@ $questiontag = optional_param('tag', '', PARAM_TAG);
  */
 function kopfuebung_get_available_questions(
     stdClass $course,
-    context_module $modulecontext,
     array $excludedids,
     int $categoryid = 0,
     string $search = ''
 ): array {
     global $DB;
 
-    $contextids = [
-        context_system::instance()->id,
-        context_course::instance($course->id)->id,
-        $modulecontext->id,
-    ];
+    $contextids = kopfuebung_get_course_question_context_ids($course);
 
     list($contextsql, $params) = $DB->get_in_or_equal($contextids, SQL_PARAMS_NAMED, 'ctx');
     $excludesql = '';
@@ -92,20 +88,46 @@ function kopfuebung_get_available_questions(
  * Return question categories available in this activity/course.
  *
  * @param stdClass $course
- * @param context_module $modulecontext
  * @return stdClass[]
  */
-function kopfuebung_get_question_categories(stdClass $course, context_module $modulecontext): array {
+function kopfuebung_get_question_categories(stdClass $course): array {
     global $DB;
 
-    $contextids = [
-        context_system::instance()->id,
-        context_course::instance($course->id)->id,
-        $modulecontext->id,
-    ];
+    $contextids = kopfuebung_get_course_question_context_ids($course);
     list($contextsql, $params) = $DB->get_in_or_equal($contextids, SQL_PARAMS_NAMED, 'ctx');
 
     return $DB->get_records_select('question_categories', "contextid $contextsql", $params, 'name ASC', 'id, name, contextid');
+}
+
+/**
+ * Return every context that can hold questions belonging to this course.
+ *
+ * This deliberately includes sibling activity contexts. Moodle stores question
+ * banks created in activities in those module contexts, so limiting the query to
+ * the current Kopfuebung context hides valid questions from the same course.
+ *
+ * @param stdClass $course
+ * @return int[]
+ */
+function kopfuebung_get_course_question_context_ids(stdClass $course): array {
+    global $DB;
+
+    $coursecontext = context_course::instance($course->id);
+    $contextids = array_map('intval', array_filter(explode('/', trim($coursecontext->path, '/'))));
+
+    $modulecontextids = $DB->get_fieldset_sql(
+        "SELECT ctx.id
+           FROM {context} ctx
+           JOIN {course_modules} cm ON cm.id = ctx.instanceid
+          WHERE ctx.contextlevel = :modulelevel
+            AND cm.course = :courseid",
+        [
+            'modulelevel' => CONTEXT_MODULE,
+            'courseid' => $course->id,
+        ]
+    );
+
+    return array_values(array_unique(array_merge($contextids, $modulecontextids)));
 }
 
 $cm = get_coursemodule_from_id('kopfuebung', $id, 0, false, MUST_EXIST);
@@ -130,30 +152,36 @@ if ($delete) {
 if ($addquestionids) {
     require_sesskey();
 
-    $availablequestions = kopfuebung_get_available_questions($course, $context, [], $categoryid, $search);
-    $currentcount = $DB->count_records('kopfuebung_questions', ['kopfuebungid' => $kopfuebung->id]);
-    $newquestionids = [];
-    foreach (array_unique($addquestionids) as $addquestionid) {
-        if (isset($availablequestions[$addquestionid]) && !$DB->record_exists('kopfuebung_questions', [
-            'kopfuebungid' => $kopfuebung->id,
-            'questionid' => $addquestionid,
-        ])) {
-            $newquestionids[] = $addquestionid;
-        }
-    }
-    if ($currentcount + count($newquestionids) > 10) {
-        throw new moodle_exception('maximumquestions', 'kopfuebung', $PAGE->url);
-    }
+    $availablequestions = kopfuebung_get_available_questions($course, [], $categoryid, $search);
+    $usedpositions = array_map('intval', $DB->get_fieldset_select(
+        'kopfuebung_questions',
+        'sortorder',
+        'kopfuebungid = ?',
+        [$kopfuebung->id]
+    ));
+    $requestedpositions = [];
+    $questionstoadd = [];
 
-    foreach ($addquestionids as $addquestionid) {
+    foreach (array_unique($addquestionids) as $addquestionid) {
         if (!isset($availablequestions[$addquestionid])) {
             throw new moodle_exception('invalidrecord', 'error', $PAGE->url, 'question');
         }
-
         if ($DB->record_exists('kopfuebung_questions', ['kopfuebungid' => $kopfuebung->id, 'questionid' => $addquestionid])) {
             continue;
         }
 
+        $position = $questionpositions[$addquestionid] ?? 0;
+        if ($position < 1 || $position > 10) {
+            throw new moodle_exception('selectquestionposition', 'kopfuebung', $PAGE->url);
+        }
+        if (in_array($position, $usedpositions, true) || isset($requestedpositions[$position])) {
+            throw new moodle_exception('questionpositioninuse', 'kopfuebung', $PAGE->url, $position);
+        }
+        $requestedpositions[$position] = true;
+        $questionstoadd[$addquestionid] = $position;
+    }
+
+    foreach ($questionstoadd as $addquestionid => $position) {
         $tag = $questiontag;
         if ($tag === '') {
             $tag = $availablequestions[$addquestionid]->categoryname ?: $availablequestions[$addquestionid]->qtype;
@@ -162,7 +190,7 @@ if ($addquestionids) {
             'kopfuebungid' => $kopfuebung->id,
             'questionid' => $addquestionid,
             'tag' => $tag,
-            'sortorder' => $DB->count_records('kopfuebung_questions', ['kopfuebungid' => $kopfuebung->id]) + 1,
+            'sortorder' => $position,
             'timecreated' => time(),
         ];
         $DB->insert_record('kopfuebung_questions', $record);
@@ -172,6 +200,20 @@ if ($addquestionids) {
 }
 
 $questions = $DB->get_records('kopfuebung_questions', ['kopfuebungid' => $kopfuebung->id], 'sortorder ASC, id ASC');
+$labels = kopfuebung_get_course_labels($course->id);
+$usedpositions = array_map(static function($record) {
+    return (int) $record->sortorder;
+}, $questions);
+$positionoptions = [0 => get_string('selectposition', 'kopfuebung')];
+for ($position = 1; $position <= 10; $position++) {
+    if (in_array($position, $usedpositions, true)) {
+        continue;
+    }
+    $positionoptions[$position] = get_string('positionwithlabel', 'kopfuebung', [
+        'position' => $position,
+        'label' => $labels[$position] !== '' ? $labels[$position] : get_string('unlabelled', 'kopfuebung'),
+    ]);
+}
 $questionids = array_map(static function($record) {
     return $record->questionid;
 }, $questions);
@@ -185,7 +227,7 @@ echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('managequestions', 'kopfuebung'));
 
 echo $OUTPUT->heading(get_string('availablequestions', 'kopfuebung'), 3);
-$categories = kopfuebung_get_question_categories($course, $context);
+$categories = kopfuebung_get_question_categories($course);
 $categoryoptions = [0 => get_string('allcategories', 'kopfuebung')];
 foreach ($categories as $category) {
     $categoryoptions[$category->id] = format_string($category->name);
@@ -211,7 +253,7 @@ echo html_writer::empty_tag('input', [
 echo html_writer::tag('button', get_string('filter'), ['type' => 'submit', 'class' => 'btn btn-secondary']);
 echo html_writer::end_tag('form');
 
-$availablequestions = kopfuebung_get_available_questions($course, $context, $questionids, $categoryid, $search);
+$availablequestions = kopfuebung_get_available_questions($course, $questionids, $categoryid, $search);
 if (!$availablequestions) {
     echo $OUTPUT->notification(get_string('noavailablequestions', 'kopfuebung'), 'notifymessage');
 } else {
@@ -231,6 +273,7 @@ if (!$availablequestions) {
         get_string('category'),
         get_string('questiontype', 'question'),
         get_string('preview', 'kopfuebung'),
+        get_string('testposition', 'kopfuebung'),
     ];
 
     foreach ($availablequestions as $availablequestion) {
@@ -249,6 +292,13 @@ if (!$availablequestions) {
             format_string($availablequestion->categoryname),
             s($availablequestion->qtype),
             s($preview),
+            html_writer::select(
+                $positionoptions,
+                'questionpositions[' . $availablequestion->id . ']',
+                0,
+                false,
+                ['class' => 'custom-select']
+            ),
         ];
     }
 
@@ -276,7 +326,13 @@ if (!$questions) {
     echo $OUTPUT->notification(get_string('missingquestions', 'kopfuebung'), 'notifymessage');
 } else {
     $table = new html_table();
-    $table->head = [get_string('questionid', 'kopfuebung'), get_string('name'), get_string('questiontag', 'kopfuebung'), ''];
+    $table->head = [
+        get_string('testposition', 'kopfuebung'),
+        get_string('questionid', 'kopfuebung'),
+        get_string('name'),
+        get_string('questiontag', 'kopfuebung'),
+        '',
+    ];
     foreach ($questions as $question) {
         $name = $questionnames[$question->questionid] ?? get_string('unknownquestion', 'kopfuebung', $question->questionid);
         $deleteurl = new moodle_url('/mod/kopfuebung/manage.php', [
@@ -285,6 +341,12 @@ if (!$questions) {
             'sesskey' => sesskey(),
         ]);
         $table->data[] = [
+            get_string('positionwithlabel', 'kopfuebung', [
+                'position' => $question->sortorder,
+                'label' => $labels[$question->sortorder] !== ''
+                    ? $labels[$question->sortorder]
+                    : get_string('unlabelled', 'kopfuebung'),
+            ]),
             $question->questionid,
             format_string($name),
             s($question->tag),
