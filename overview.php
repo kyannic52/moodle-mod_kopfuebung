@@ -14,9 +14,10 @@ require_login($course);
 require_capability('mod/kopfuebung:viewoverview', $context);
 
 $canmanage = has_capability('mod/kopfuebung:manageoverview', $context);
+$showallusers = $canmanage && $userid === -1;
 $targetuser = $USER;
 
-if ($canmanage && $userid && $userid != $USER->id) {
+if ($canmanage && !$showallusers && $userid && $userid != $USER->id) {
     $targetuser = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], '*', MUST_EXIST);
     if (!is_enrolled($context, $targetuser, '', true)) {
         throw new moodle_exception('notenrolled', 'enrol');
@@ -24,7 +25,9 @@ if ($canmanage && $userid && $userid != $USER->id) {
 }
 
 $urlparams = ['id' => $course->id];
-if ($targetuser->id != $USER->id) {
+if ($showallusers) {
+    $urlparams['userid'] = -1;
+} else if ($targetuser->id != $USER->id) {
     $urlparams['userid'] = $targetuser->id;
 }
 $PAGE->set_url('/mod/kopfuebung/overview.php', $urlparams);
@@ -41,11 +44,7 @@ if ($canmanage && data_submitted()) {
 
 $activities = kopfuebung_get_course_activities($course);
 $labels = kopfuebung_get_course_labels($course->id);
-$matrix = kopfuebung_get_user_matrix($activities, $targetuser->id);
-
-echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('courseoverview', 'kopfuebung'));
-
+$participants = [];
 if ($canmanage) {
     $participants = get_enrolled_users(
         $context,
@@ -54,7 +53,16 @@ if ($canmanage) {
         'u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename',
         'u.lastname ASC, u.firstname ASC'
     );
-    $participantoptions = [$USER->id => fullname($USER)];
+}
+$matrix = $showallusers
+    ? kopfuebung_get_group_matrix($activities, array_keys($participants))
+    : kopfuebung_get_user_matrix($activities, $targetuser->id);
+
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('courseoverview', 'kopfuebung'));
+
+if ($canmanage) {
+    $participantoptions = [-1 => get_string('allparticipants', 'kopfuebung'), $USER->id => fullname($USER)];
     foreach ($participants as $participant) {
         $participantoptions[$participant->id] = fullname($participant);
     }
@@ -67,7 +75,7 @@ if ($canmanage) {
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $course->id]);
     echo html_writer::start_div('form-group mb-0 mr-2');
     echo html_writer::label(get_string('selectparticipant', 'kopfuebung'), 'kopfuebung-userid');
-    echo html_writer::select($participantoptions, 'userid', $targetuser->id, false, [
+    echo html_writer::select($participantoptions, 'userid', $showallusers ? -1 : $targetuser->id, false, [
         'id' => 'kopfuebung-userid',
         'class' => 'custom-select',
     ]);
@@ -76,8 +84,16 @@ if ($canmanage) {
     echo html_writer::end_tag('form');
 }
 
-echo $OUTPUT->heading(get_string('resultsof', 'kopfuebung', fullname($targetuser)), 3);
-echo html_writer::tag('p', get_string('overviewexplanation', 'kopfuebung'));
+echo $OUTPUT->heading(
+    $showallusers
+        ? get_string('resultsofallparticipants', 'kopfuebung')
+        : get_string('resultsof', 'kopfuebung', fullname($targetuser)),
+    3
+);
+echo html_writer::tag('p', get_string(
+    $showallusers ? 'groupoverviewexplanation' : 'overviewexplanation',
+    'kopfuebung'
+));
 
 if (!$activities) {
     echo $OUTPUT->notification(get_string('noactivities', 'kopfuebung'), 'notifymessage');
@@ -124,6 +140,18 @@ if (!$activities) {
 
         $row = [$rowlabel];
         foreach ($activities as $activity) {
+            if ($showallusers) {
+                $cell = $matrix[$activity->id]['cells'][$position];
+                $percentage = $matrix[$activity->id]['participantcount'] > 0
+                    ? (int) round(100 * $cell['correct'] / $matrix[$activity->id]['participantcount'])
+                    : 0;
+                $row[] = get_string('groupresult', 'kopfuebung', [
+                    'percentage' => $percentage,
+                    'answered' => $cell['answered'],
+                ]);
+                continue;
+            }
+
             $state = $matrix[$activity->id]['cells'][$position];
             $indicator = [
                 'correct' => ['✓', 'success'],
@@ -147,21 +175,34 @@ if (!$activities) {
     $sumrow = [html_writer::tag('strong', get_string('sum', 'kopfuebung'))];
     foreach ($activities as $activity) {
         $result = $matrix[$activity->id];
-        $sumrow[] = $result['attemptid']
-            ? get_string('scoreoutof', 'kopfuebung', ['score' => $result['correct'], 'total' => count($result['cells'])])
-            : get_string('notattempted', 'kopfuebung');
+        if ($showallusers) {
+            $totalpossible = $result['participantcount'] * count($result['cells']);
+            $percentage = $totalpossible > 0
+                ? (int) round(100 * $result['correct'] / $totalpossible)
+                : 0;
+            $sumrow[] = $percentage . '%';
+        } else {
+            $sumrow[] = $result['attemptid']
+                ? get_string('scoreoutof', 'kopfuebung', [
+                    'score' => $result['correct'],
+                    'total' => count($result['cells']),
+                ])
+                : get_string('notattempted', 'kopfuebung');
+        }
     }
     $table->data[] = $sumrow;
 
     echo html_writer::div(html_writer::table($table), 'table-responsive');
-    echo html_writer::div(
-        get_string('legend', 'kopfuebung') . ': ' .
-        '✓ ' . get_string('correct', 'kopfuebung') . ', ' .
-        '◐ ' . get_string('partiallycorrect', 'kopfuebung') . ', ' .
-        '✕ ' . get_string('incorrect', 'kopfuebung') . ', ' .
-        '— ' . get_string('unanswered', 'kopfuebung'),
-        'small text-muted mb-3'
-    );
+    if (!$showallusers) {
+        echo html_writer::div(
+            get_string('legend', 'kopfuebung') . ': ' .
+            '✓ ' . get_string('correct', 'kopfuebung') . ', ' .
+            '◐ ' . get_string('partiallycorrect', 'kopfuebung') . ', ' .
+            '✕ ' . get_string('incorrect', 'kopfuebung') . ', ' .
+            '— ' . get_string('unanswered', 'kopfuebung'),
+            'small text-muted mb-3'
+        );
+    }
 
     if ($canmanage) {
         echo html_writer::tag('button', get_string('savelabels', 'kopfuebung'), [

@@ -163,3 +163,43 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
 
     return $matrix;
 }
+
+/**
+ * Aggregate the most recent attempts of a set of course participants.
+ *
+ * @param array $activities
+ * @param int[] $userids
+ * @return array keyed by activity id
+ */
+function kopfuebung_get_group_matrix(array $activities, array $userids): array {
+    $userids = array_values(array_unique(array_map('intval', $userids)));
+    $participantcount = count($userids);
+    $matrix = [];
+
+    foreach ($activities as $activity) {
+        $matrix[$activity->id] = [
+            'cells' => array_fill(1, 10, ['correct' => 0, 'answered' => 0]),
+            'correct' => 0,
+            'answered' => 0,
+            'participantcount' => $participantcount,
+        ];
+    }
+
+    foreach ($userids as $userid) {
+        $usermatrix = kopfuebung_get_user_matrix($activities, $userid);
+        foreach ($activities as $activity) {
+            foreach ($usermatrix[$activity->id]['cells'] as $position => $state) {
+                if ($state === 'correct') {
+                    $matrix[$activity->id]['cells'][$position]['correct']++;
+                    $matrix[$activity->id]['correct']++;
+                }
+                if (in_array($state, ['correct', 'partiallycorrect', 'incorrect'], true)) {
+                    $matrix[$activity->id]['cells'][$position]['answered']++;
+                    $matrix[$activity->id]['answered']++;
+                }
+            }
+        }
+    }
+
+    return $matrix;
+}
