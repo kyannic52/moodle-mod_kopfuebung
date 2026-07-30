@@ -126,7 +126,7 @@ echo $OUTPUT->heading(format_string($kopfuebung->name));
 $remainingseconds = max(0, $deadline - time());
 echo html_writer::div(
     get_string('remainingtime', 'kopfuebung') . ': ' . kopfuebung_format_timer($remainingseconds),
-    'alert alert-info',
+    'alert alert-info sticky-top shadow-sm',
     ['id' => 'kopfuebung-timer', 'data-seconds' => $remainingseconds]
 );
 

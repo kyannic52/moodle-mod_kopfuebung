@@ -4,6 +4,177 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
+ * Return every context that can hold questions belonging to this course.
+ *
+ * @param stdClass $course
+ * @return int[]
+ */
+function kopfuebung_get_course_question_context_ids(stdClass $course): array {
+    global $DB;
+
+    $coursecontext = context_course::instance($course->id);
+    $contextids = array_map('intval', array_filter(explode('/', trim($coursecontext->path, '/'))));
+    $modulecontextids = $DB->get_fieldset_sql(
+        "SELECT ctx.id
+           FROM {context} ctx
+           JOIN {course_modules} cm ON cm.id = ctx.instanceid
+          WHERE ctx.contextlevel = :modulelevel
+            AND cm.course = :courseid",
+        ['modulelevel' => CONTEXT_MODULE, 'courseid' => $course->id]
+    );
+
+    return array_values(array_unique(array_merge($contextids, $modulecontextids)));
+}
+
+/**
+ * Return the latest ready question-bank questions available in a course.
+ *
+ * @param stdClass $course
+ * @param int $categoryid
+ * @param string $search
+ * @return stdClass[]
+ */
+function kopfuebung_get_available_questions(
+    stdClass $course,
+    int $categoryid = 0,
+    string $search = ''
+): array {
+    global $DB;
+
+    $contextids = kopfuebung_get_course_question_context_ids($course);
+    list($contextsql, $params) = $DB->get_in_or_equal($contextids, SQL_PARAMS_NAMED, 'ctx');
+
+    $categorysql = '';
+    if ($categoryid) {
+        $categorysql = ' AND qc.id = :categoryid';
+        $params['categoryid'] = $categoryid;
+    }
+
+    $searchsql = '';
+    if ($search !== '') {
+        $searchsql = $DB->sql_like('q.name', ':searchname', false) .
+            ' OR ' . $DB->sql_like('q.questiontext', ':searchtext', false);
+        $searchsql = " AND ($searchsql)";
+        $params['searchname'] = '%' . $DB->sql_like_escape($search) . '%';
+        $params['searchtext'] = '%' . $DB->sql_like_escape($search) . '%';
+    }
+
+    $params['readystatus'] = 'ready';
+    $params['readystatussub'] = 'ready';
+    $params['randomqtype'] = 'random';
+
+    $sql = "SELECT q.id,
+                   q.name,
+                   q.questiontext,
+                   q.questiontextformat,
+                   q.qtype,
+                   qc.name AS categoryname
+              FROM {question_versions} qv
+              JOIN {question} q ON q.id = qv.questionid
+              JOIN {question_bank_entries} qbe ON qbe.id = qv.questionbankentryid
+              JOIN {question_categories} qc ON qc.id = qbe.questioncategoryid
+             WHERE qc.contextid $contextsql
+               AND qv.status = :readystatus
+               AND qv.version = (
+                   SELECT MAX(qv2.version)
+                     FROM {question_versions} qv2
+                    WHERE qv2.questionbankentryid = qv.questionbankentryid
+                      AND qv2.status = :readystatussub
+               )
+               AND q.qtype <> :randomqtype
+                   $categorysql
+                   $searchsql
+          ORDER BY q.name ASC, qc.name ASC";
+
+    return $DB->get_records_sql($sql, $params);
+}
+
+/**
+ * Return question categories available in a course.
+ *
+ * @param stdClass $course
+ * @return stdClass[]
+ */
+function kopfuebung_get_question_categories(stdClass $course): array {
+    global $DB;
+
+    $contextids = kopfuebung_get_course_question_context_ids($course);
+    list($contextsql, $params) = $DB->get_in_or_equal($contextids, SQL_PARAMS_NAMED, 'ctx');
+
+    return $DB->get_records_select(
+        'question_categories',
+        "contextid $contextsql",
+        $params,
+        'name ASC',
+        'id, name'
+    );
+}
+
+/**
+ * Persist the complete ten-position question assignment.
+ *
+ * Existing records are retained when possible so references remain stable.
+ *
+ * @param int $kopfuebungid
+ * @param array $assignments position => question id
+ * @param stdClass[] $availablequestions
+ */
+function kopfuebung_save_question_assignments(
+    int $kopfuebungid,
+    array $assignments,
+    array $availablequestions
+): void {
+    global $DB;
+
+    $normalised = [];
+    foreach ($assignments as $position => $questionid) {
+        $position = (int) $position;
+        $questionid = (int) $questionid;
+        if ($position < 1 || $position > 10 || !$questionid) {
+            continue;
+        }
+        if (!isset($availablequestions[$questionid])) {
+            throw new moodle_exception('invalidrecord', 'error', '', 'question');
+        }
+        if (in_array($questionid, $normalised, true)) {
+            throw new moodle_exception('duplicatequestionassignment', 'kopfuebung');
+        }
+        $normalised[$position] = $questionid;
+    }
+
+    $transaction = $DB->start_delegated_transaction();
+    $existing = $DB->get_records('kopfuebung_questions', ['kopfuebungid' => $kopfuebungid]);
+    $existingbyquestion = [];
+    foreach ($existing as $record) {
+        $existingbyquestion[(int) $record->questionid] = $record;
+    }
+
+    foreach ($normalised as $position => $questionid) {
+        if (isset($existingbyquestion[$questionid])) {
+            $record = $existingbyquestion[$questionid];
+            $record->sortorder = $position;
+            $DB->update_record('kopfuebung_questions', $record);
+            unset($existing[$record->id]);
+            continue;
+        }
+
+        $question = $availablequestions[$questionid];
+        $DB->insert_record('kopfuebung_questions', (object) [
+            'kopfuebungid' => $kopfuebungid,
+            'questionid' => $questionid,
+            'tag' => $question->categoryname ?: $question->qtype,
+            'sortorder' => $position,
+            'timecreated' => time(),
+        ]);
+    }
+
+    foreach ($existing as $record) {
+        $DB->delete_records('kopfuebung_questions', ['id' => $record->id]);
+    }
+    $transaction->allow_commit();
+}
+
+/**
  * Return the Kopfuebung activities that are visible to the current user.
  *
  * @param stdClass $course
