@@ -20,6 +20,7 @@ if ($action === 'start') {
     $kopfuebung->timestarted = time();
 } else if ($action === 'stop') {
     $kopfuebung->activitystate = 0;
+    $DB->delete_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]);
 } else {
     throw new moodle_exception('invalidrequest');
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/kopfuebung/db" VERSION="2026072600" COMMENT="XMLDB file for Moodle mod_kopfuebung"
+<XMLDB PATH="mod/kopfuebung/db" VERSION="2026073002" COMMENT="XMLDB file for Moodle mod_kopfuebung"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd">
   <TABLES>
@@ -94,6 +94,23 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="course_position" UNIQUE="true" FIELDS="courseid, position"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="kopfuebung_ready" COMMENT="Students who reported that they are ready to start">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="kopfuebungid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="kopfuebungfk" TYPE="foreign" FIELDS="kopfuebungid" REFTABLE="kopfuebung" REFFIELDS="id"/>
+        <KEY NAME="userfk" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="kopfuebung_user" UNIQUE="true" FIELDS="kopfuebungid, userid"/>
       </INDEXES>
     </TABLE>
   </TABLES>

@@ -58,6 +58,7 @@ function kopfuebung_delete_instance($id) {
     }
 
     $DB->delete_records('kopfuebung_attempts', ['kopfuebungid' => $id]);
+    $DB->delete_records('kopfuebung_ready', ['kopfuebungid' => $id]);
     $DB->delete_records('kopfuebung_questions', ['kopfuebungid' => $id]);
     $DB->delete_records('kopfuebung', ['id' => $id]);
 

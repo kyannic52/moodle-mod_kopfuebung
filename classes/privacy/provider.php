@@ -27,6 +27,15 @@ class provider implements \core_privacy\local\metadata\provider {
             'privacy:metadata:kopfuebung_answers'
         );
 
+        $collection->add_database_table(
+            'kopfuebung_ready',
+            [
+                'userid' => 'privacy:metadata:kopfuebung_ready:userid',
+                'timecreated' => 'privacy:metadata:kopfuebung_ready:timecreated',
+            ],
+            'privacy:metadata:kopfuebung_ready'
+        );
+
         return $collection;
     }
 }

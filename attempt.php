@@ -69,7 +69,7 @@ if (!$attempt) {
         'kopfuebungid' => $kopfuebung->id,
         'userid' => $USER->id,
         'questionusageid' => 0,
-        'timestarted' => time(),
+        'timestarted' => $kopfuebung->timestarted ?: time(),
         'timefinished' => null,
         'status' => 'inprogress',
     ];
@@ -161,7 +161,6 @@ echo html_writer::tag('button', get_string('finishattempt', 'kopfuebung'), [
 ]);
 echo html_writer::end_tag('form');
 
-$PAGE->requires->js_init_call('M.core_question_engine.init_form', ['#responseform']);
 $remaininglabel = json_encode(get_string('remainingtime', 'kopfuebung') . ': ');
 $PAGE->requires->js_init_code("
 var timer = document.getElementById('kopfuebung-timer');
@@ -173,7 +172,8 @@ if (timer && form) {
     var updateTimer = function() {
         var minutes = Math.floor(seconds / 60);
         var remainder = seconds % 60;
-        var formatted = String(minutes).padStart(2, '0') + ':' + String(remainder).padStart(2, '0');
+        var formatted = (minutes < 10 ? '0' : '') + minutes + ':' +
+            (remainder < 10 ? '0' : '') + remainder;
         timer.textContent = label + formatted;
         if (seconds <= 0) {
             window.clearInterval(interval);
@@ -191,4 +191,5 @@ if (timer && form) {
     interval = window.setInterval(updateTimer, 1000);
 }
 ");
+$PAGE->requires->js_init_call('M.core_question_engine.init_form', ['#responseform']);
 echo $OUTPUT->footer();
