@@ -33,6 +33,19 @@
     min-width: 20rem;
 }
 
-#kopfuebung-timer.sticky-top {
-    z-index: 100;
+#kopfuebung-timer.kopfuebung-timer-fixed {
+    position: fixed;
+    top: 4.5rem;
+    right: 1rem;
+    z-index: 1050;
+    min-width: 13rem;
+    text-align: center;
+}
+
+@media (max-width: 767.98px) {
+    #kopfuebung-timer.kopfuebung-timer-fixed {
+        top: 3.75rem;
+        right: 0.5rem;
+        left: 0.5rem;
+    }
 }
