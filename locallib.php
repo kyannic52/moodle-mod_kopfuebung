@@ -255,6 +255,39 @@ function kopfuebung_get_course_activities(stdClass $course): array {
 }
 
 /**
+ * Return active enrolled users who may attempt at least one visible Kopfuebung.
+ *
+ * @param stdClass $course
+ * @param array $activities
+ * @return stdClass[] keyed by user id
+ */
+function kopfuebung_get_course_participants(stdClass $course, array $activities): array {
+    $context = context_course::instance($course->id);
+    $enrolledusers = get_enrolled_users(
+        $context,
+        '',
+        0,
+        'u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename',
+        'u.lastname ASC, u.firstname ASC',
+        0,
+        0,
+        true
+    );
+
+    $participants = [];
+    foreach ($enrolledusers as $participant) {
+        foreach ($activities as $activity) {
+            $activitycontext = context_module::instance($activity->cmid);
+            if (has_capability('mod/kopfuebung:attempt', $activitycontext, $participant->id)) {
+                $participants[$participant->id] = $participant;
+                break;
+            }
+        }
+    }
+    return $participants;
+}
+
+/**
  * Load the ten course-wide diagnostic row labels.
  *
  * @param int $courseid
@@ -436,10 +469,19 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
         try {
             $quba = question_engine::load_questions_usage_by_activity($attempt->questionusageid);
             $result['attemptid'] = $attempt->id;
+            $selectedquestions = $DB->get_records(
+                'kopfuebung_questions',
+                ['kopfuebungid' => $activity->id],
+                'sortorder ASC, id ASC',
+                'id, sortorder'
+            );
+            $positions = array_map(static function($selectedquestion) {
+                return (int) $selectedquestion->sortorder;
+            }, array_values($selectedquestions));
             foreach (array_values($quba->get_slots()) as $index => $slot) {
-                $position = $index + 1;
-                if ($position > 10) {
-                    break;
+                $position = $positions[$index] ?? ($index + 1);
+                if ($position < 1 || $position > 10) {
+                    continue;
                 }
 
                 $qa = $quba->get_question_attempt($slot);
@@ -485,7 +527,11 @@ function kopfuebung_get_group_matrix(array $activities, array $userids): array {
 
     foreach ($activities as $activity) {
         $matrix[$activity->id] = [
-            'cells' => array_fill(1, 10, ['correct' => 0, 'answered' => 0]),
+            'cells' => array_fill(1, 10, [
+                'correct' => 0,
+                'answered' => 0,
+                'incorrectuserids' => [],
+            ]),
             'correct' => 0,
             'answered' => 0,
             'participantcount' => $participantcount,
@@ -503,6 +549,9 @@ function kopfuebung_get_group_matrix(array $activities, array $userids): array {
                 if (in_array($state, ['correct', 'partiallycorrect', 'incorrect'], true)) {
                     $matrix[$activity->id]['cells'][$position]['answered']++;
                     $matrix[$activity->id]['answered']++;
+                }
+                if (in_array($state, ['partiallycorrect', 'incorrect'], true)) {
+                    $matrix[$activity->id]['cells'][$position]['incorrectuserids'][] = $userid;
                 }
             }
         }

@@ -67,26 +67,7 @@ if ($canmanage && data_submitted()) {
     }
     redirect($PAGE->url, get_string('labelssaved', 'kopfuebung'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
-$enrolledusers = get_enrolled_users(
-    $context,
-    '',
-    0,
-    'u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename',
-    'u.lastname ASC, u.firstname ASC',
-    0,
-    0,
-    true
-);
-$participants = [];
-foreach ($enrolledusers as $participant) {
-    foreach ($activities as $activity) {
-        $activitycontext = context_module::instance($activity->cmid);
-        if (has_capability('mod/kopfuebung:attempt', $activitycontext, $participant->id)) {
-            $participants[$participant->id] = $participant;
-            break;
-        }
-    }
-}
+$participants = kopfuebung_get_course_participants($course, $activities);
 $groupmatrix = kopfuebung_get_group_matrix($activities, array_keys($participants));
 $matrix = $showallusers
     ? $groupmatrix
@@ -209,6 +190,41 @@ if (!$activities) {
         ]);
     };
 
+    $renderdetailslink = static function(stdClass $activity, int $position) use (
+        $canmanage,
+        $course,
+        $groupmatrix,
+        $participants
+    ): string {
+        if (!$canmanage) {
+            return '';
+        }
+
+        $incorrectnames = [];
+        foreach ($groupmatrix[$activity->id]['cells'][$position]['incorrectuserids'] as $participantid) {
+            if (isset($participants[$participantid])) {
+                $incorrectnames[] = fullname($participants[$participantid]);
+            }
+        }
+        $tooltip = get_string('incorrectparticipantstooltip', 'kopfuebung') . "\n\n" .
+            ($incorrectnames
+                ? implode("\n", $incorrectnames)
+                : get_string('noincorrectparticipants', 'kopfuebung'));
+
+        return ' ' . html_writer::link(
+            new moodle_url('/mod/kopfuebung/resultdetail.php', [
+                'id' => $activity->cmid,
+                'position' => $position,
+            ]),
+            html_writer::span('i', 'kopfuebung-info-symbol', ['aria-hidden' => 'true']),
+            [
+                'class' => 'kopfuebung-result-details',
+                'title' => $tooltip,
+                'aria-label' => get_string('showparticipantdetails', 'kopfuebung'),
+            ]
+        );
+    };
+
     for ($position = 1; $position <= 10; $position++) {
         $row = [$renderlabel(0, $defaultlabels, $position)];
         foreach ($activities as $activity) {
@@ -230,10 +246,11 @@ if (!$activities) {
                 $percentage = $matrix[$activity->id]['participantcount'] > 0
                     ? (int) round(100 * $cell['correct'] / $matrix[$activity->id]['participantcount'])
                     : 0;
-                $row[] = get_string('groupresult', 'kopfuebung', [
+                $content = get_string('groupresult', 'kopfuebung', [
                     'percentage' => $percentage,
                     'answered' => $cell['answered'],
                 ]);
+                $row[] = $content . $renderdetailslink($activity, $position);
                 continue;
             }
 
@@ -261,6 +278,7 @@ if (!$activities) {
                 ]),
                 'kopfuebung-comparison'
             );
+            $content .= $renderdetailslink($activity, $position);
             $cell = new html_table_cell($content);
             $cell->attributes['class'] = 'kopfuebung-result-cell kopfuebung-result-' . $state;
             $row[] = $cell;

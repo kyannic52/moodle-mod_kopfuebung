@@ -25,6 +25,40 @@
     min-width: 12rem;
 }
 
+.kopfuebung-result-details {
+    display: inline-flex;
+    margin-left: 0.25rem;
+    text-decoration: none;
+    vertical-align: middle;
+}
+
+.kopfuebung-info-symbol {
+    align-items: center;
+    border: 2px solid #0f6cbf;
+    border-radius: 50%;
+    color: #0f6cbf;
+    display: inline-flex;
+    font-family: serif;
+    font-size: 0.75rem;
+    font-weight: bold;
+    height: 1.1rem;
+    justify-content: center;
+    line-height: 1;
+    width: 1.1rem;
+}
+
+.kopfuebung-result-detail tr.kopfuebung-result-correct > td {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.kopfuebung-result-detail tr.kopfuebung-result-incorrect > td {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.kopfuebung-result-detail tr.kopfuebung-result-partiallycorrect > td {
+    background-color: rgba(255, 193, 7, 0.12);
+}
+
 .kopfuebung-assignment-table th:first-child,
 .kopfuebung-assignment-table td:first-child {
     min-width: 14rem;
