@@ -4,6 +4,7 @@
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/question/engine/lib.php');
 require_once($CFG->libdir . '/questionlib.php');
+require_once(__DIR__ . '/locallib.php');
 
 $id = required_param('id', PARAM_INT);
 
@@ -58,11 +59,11 @@ if (!$questions) {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]), get_string('missingquestions', 'kopfuebung'));
 }
 
-$attempt = $DB->get_record('kopfuebung_attempts', [
-    'kopfuebungid' => $kopfuebung->id,
-    'userid' => $USER->id,
-    'status' => 'inprogress',
-]);
+$attempt = kopfuebung_get_current_attempt($kopfuebung, $USER->id);
+
+if ($attempt && $attempt->status === 'finished') {
+    redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
+}
 
 if (!$attempt) {
     $attempt = (object) [
@@ -96,7 +97,7 @@ if (data_submitted() && confirm_sesskey()) {
         $DB->update_record('kopfuebung_attempts', $attempt);
         question_engine::save_questions_usage_by_activity($quba);
         $transaction->allow_commit();
-        redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]), get_string('answersaved', 'kopfuebung'));
+        redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
     }
 
     question_engine::save_questions_usage_by_activity($quba);
@@ -113,7 +114,7 @@ if ($expired) {
     $DB->update_record('kopfuebung_attempts', $attempt);
     question_engine::save_questions_usage_by_activity($quba);
     $transaction->allow_commit();
-    redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]), get_string('timeexpired', 'kopfuebung'));
+    redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
 }
 
 $PAGE->set_url('/mod/kopfuebung/attempt.php', ['id' => $cm->id]);

@@ -4,6 +4,7 @@
 define('AJAX_SCRIPT', true);
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/locallib.php');
 
 $id = required_param('id', PARAM_INT);
 $cm = get_coursemodule_from_id('kopfuebung', $id, 0, false, MUST_EXIST);
@@ -20,16 +21,12 @@ $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
     'kopfuebungid' => $kopfuebung->id,
     'userid' => $USER->id,
 ]);
+$attempt = $canattempt ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
 $remainingseconds = (int) $kopfuebung->timelimit;
 
 if ($canattempt && $kopfuebung->activitystate) {
     $remainingseconds = max(0, $kopfuebung->timestarted + $kopfuebung->timelimit - time());
-    $attempt = $DB->get_record('kopfuebung_attempts', [
-        'kopfuebungid' => $kopfuebung->id,
-        'userid' => $USER->id,
-        'status' => 'inprogress',
-    ]);
-    if ($attempt) {
+    if ($attempt && $attempt->status === 'inprogress') {
         $remainingseconds = max(0, $attempt->timestarted + $kopfuebung->timelimit - time());
     }
 }
@@ -37,6 +34,7 @@ if ($canattempt && $kopfuebung->activitystate) {
 $response = [
     'activitystate' => (bool) $kopfuebung->activitystate,
     'userready' => (bool) $userready,
+    'attemptfinished' => $attempt && $attempt->status === 'finished',
     'remainingseconds' => $remainingseconds,
 ];
 if ($canstart) {

@@ -4,6 +4,52 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
+ * Return a user's attempt from the activity's current run, if one exists.
+ *
+ * @param stdClass $kopfuebung
+ * @param int $userid
+ * @return stdClass|null
+ */
+function kopfuebung_get_current_attempt(stdClass $kopfuebung, int $userid): ?stdClass {
+    global $DB;
+
+    if (empty($kopfuebung->timestarted)) {
+        return null;
+    }
+
+    $params = [
+        'kopfuebungid' => $kopfuebung->id,
+        'userid' => $userid,
+        'activitystarted' => $kopfuebung->timestarted,
+    ];
+    $attempts = $DB->get_records_select(
+        'kopfuebung_attempts',
+        'kopfuebungid = :kopfuebungid AND userid = :userid
+            AND timestarted >= :activitystarted AND status = :finishedstatus',
+        $params + ['finishedstatus' => 'finished'],
+        'id DESC',
+        '*',
+        0,
+        1
+    );
+
+    $attempt = reset($attempts);
+    if (!$attempt) {
+        $attempts = $DB->get_records_select(
+            'kopfuebung_attempts',
+            'kopfuebungid = :kopfuebungid AND userid = :userid AND timestarted >= :activitystarted',
+            $params,
+            'id DESC',
+            '*',
+            0,
+            1
+        );
+        $attempt = reset($attempts);
+    }
+    return $attempt ?: null;
+}
+
+/**
  * Return every context that can hold questions belonging to this course.
  *
  * @param stdClass $course
@@ -191,7 +237,12 @@ function kopfuebung_get_course_activities(stdClass $course): array {
         if (!$cm->uservisible) {
             continue;
         }
-        $activity = $DB->get_record('kopfuebung', ['id' => $cm->instance], 'id, name', IGNORE_MISSING);
+        $activity = $DB->get_record(
+            'kopfuebung',
+            ['id' => $cm->instance],
+            'id, name, activitystate, timestarted, timelimit',
+            IGNORE_MISSING
+        );
         if (!$activity) {
             continue;
         }
@@ -285,13 +336,24 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
 
         $attempts = $DB->get_records(
             'kopfuebung_attempts',
-            ['kopfuebungid' => $activity->id, 'userid' => $userid],
+            ['kopfuebungid' => $activity->id, 'userid' => $userid, 'status' => 'finished'],
             'id DESC',
             '*',
             0,
             1
         );
         $attempt = reset($attempts);
+        if (!$attempt) {
+            $attempts = $DB->get_records(
+                'kopfuebung_attempts',
+                ['kopfuebungid' => $activity->id, 'userid' => $userid],
+                'id DESC',
+                '*',
+                0,
+                1
+            );
+            $attempt = reset($attempts);
+        }
         if (!$attempt || empty($attempt->questionusageid)) {
             $matrix[$activity->id] = $result;
             continue;

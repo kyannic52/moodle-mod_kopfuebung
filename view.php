@@ -2,6 +2,7 @@
 // This file is part of Moodle - http://moodle.org/
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/locallib.php');
 
 $id = required_param('id', PARAM_INT);
 
@@ -20,16 +21,13 @@ $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
     'userid' => $USER->id,
 ]);
 $readycount = $canstart ? $DB->count_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]) : 0;
+$attempt = $canattempt ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
+$attemptfinished = $attempt && $attempt->status === 'finished';
 
 $remainingseconds = (int) $kopfuebung->timelimit;
 if ($canattempt && $kopfuebung->activitystate) {
     $remainingseconds = max(0, $kopfuebung->timestarted + $kopfuebung->timelimit - time());
-    $attempt = $DB->get_record('kopfuebung_attempts', [
-        'kopfuebungid' => $kopfuebung->id,
-        'userid' => $USER->id,
-        'status' => 'inprogress',
-    ]);
-    if ($attempt) {
+    if ($attempt && $attempt->status === 'inprogress') {
         $remainingseconds = max(0, $attempt->timestarted + $kopfuebung->timelimit - time());
     }
 }
@@ -45,6 +43,7 @@ $initialstate = $kopfuebung->activitystate ? 'true' : 'false';
 $canattemptjs = $canattempt ? 'true' : 'false';
 $canstartjs = $canstart ? 'true' : 'false';
 $userreadyjs = $userready ? 'true' : 'false';
+$attemptfinishedjs = $attemptfinished ? 'true' : 'false';
 $startedtemplate = json_encode(get_string('activitystartedtime', 'kopfuebung', '__TIME__'));
 $PAGE->requires->js_init_code("
 var statusUrl = " . json_encode($statusurl->out(false)) . ";
@@ -53,6 +52,7 @@ var initialState = $initialstate;
 var canAttempt = $canattemptjs;
 var canStart = $canstartjs;
 var userReady = $userreadyjs;
+var attemptFinished = $attemptfinishedjs;
 var remainingSeconds = " . (int) $remainingseconds . ";
 var statusMessage = document.getElementById('kopfuebung-status-message');
 var readyCount = document.getElementById('kopfuebung-ready-count');
@@ -90,8 +90,9 @@ var pollStatus = function() {
             }
             if (canAttempt) {
                 userReady = data.userready;
+                attemptFinished = data.attemptfinished;
                 remainingSeconds = data.remainingseconds;
-                if (data.activitystate && userReady) {
+                if (data.activitystate && userReady && !attemptFinished) {
                     window.location.assign(attemptUrl);
                     return;
                 }
@@ -117,7 +118,10 @@ echo $OUTPUT->heading(format_string($kopfuebung->name));
 echo format_module_intro('kopfuebung', $kopfuebung, $cm->id);
 
 if ($canattempt) {
-    if ($kopfuebung->activitystate) {
+    if ($attemptfinished) {
+        $statusstring = get_string('attemptalreadysubmitted', 'kopfuebung');
+        $statusclass = 'alert alert-info';
+    } else if ($kopfuebung->activitystate) {
         $statusstring = get_string('activitystartedtime', 'kopfuebung', sprintf(
             '%02d:%02d',
             floor($remainingseconds / 60),
@@ -136,7 +140,7 @@ if ($canattempt) {
 }
 echo html_writer::div($statusstring, $statusclass, ['id' => 'kopfuebung-status-message']);
 
-if ($canattempt && !$kopfuebung->activitystate && $userready) {
+if ($canattempt && !$attemptfinished && !$kopfuebung->activitystate && $userready) {
     echo $OUTPUT->notification(get_string('readinessreported', 'kopfuebung'), 'notifysuccess');
 }
 if ($canstart) {
@@ -178,7 +182,7 @@ if (has_capability('mod/kopfuebung:viewreports', $context)) {
         'get'
     );
 }
-if ($canattempt && !$kopfuebung->activitystate && !$userready) {
+if ($canattempt && !$attemptfinished && !$kopfuebung->activitystate && !$userready) {
     $buttons[] = $OUTPUT->single_button(
         new moodle_url('/mod/kopfuebung/ready.php', ['id' => $cm->id, 'sesskey' => sesskey()]),
         get_string('iamready', 'kopfuebung'),
@@ -186,10 +190,10 @@ if ($canattempt && !$kopfuebung->activitystate && !$userready) {
         ['primary' => true]
     );
 }
-if ($canattempt && $kopfuebung->activitystate) {
+if ($canattempt && !$attemptfinished && $kopfuebung->activitystate) {
     $buttons[] = $OUTPUT->single_button(
         $attempturl,
-        get_string('attemptactivity', 'kopfuebung'),
+        get_string($attempt ? 'continueattempt' : 'attemptactivity', 'kopfuebung'),
         'get',
         ['primary' => true]
     );

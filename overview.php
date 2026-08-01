@@ -44,9 +44,9 @@ if ($canmanage && data_submitted()) {
 
 $activities = kopfuebung_get_course_activities($course);
 $labels = kopfuebung_get_course_labels($course->id);
-$participants = get_enrolled_users(
+$enrolledusers = get_enrolled_users(
     $context,
-    'mod/kopfuebung:attempt',
+    '',
     0,
     'u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename',
     'u.lastname ASC, u.firstname ASC',
@@ -54,6 +54,16 @@ $participants = get_enrolled_users(
     0,
     true
 );
+$participants = [];
+foreach ($enrolledusers as $participant) {
+    foreach ($activities as $activity) {
+        $activitycontext = context_module::instance($activity->cmid);
+        if (has_capability('mod/kopfuebung:attempt', $activitycontext, $participant->id)) {
+            $participants[$participant->id] = $participant;
+            break;
+        }
+    }
+}
 $groupmatrix = kopfuebung_get_group_matrix($activities, array_keys($participants));
 $matrix = $showallusers
     ? $groupmatrix
@@ -63,15 +73,6 @@ echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('courseoverview', 'kopfuebung'));
 
 if ($canmanage) {
-    $studentoptions = [];
-    foreach ($participants as $participant) {
-        $studentoptions[$participant->id] = fullname($participant);
-    }
-    $participantoptions = [
-        -1 => get_string('allparticipants', 'kopfuebung'),
-        get_string('participantseparator', 'kopfuebung') => $studentoptions,
-    ];
-
     echo html_writer::start_tag('form', [
         'method' => 'get',
         'action' => (new moodle_url('/mod/kopfuebung/overview.php'))->out(false),
@@ -80,10 +81,26 @@ if ($canmanage) {
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $course->id]);
     echo html_writer::start_div('form-group mb-0 mr-2');
     echo html_writer::label(get_string('selectparticipant', 'kopfuebung'), 'kopfuebung-userid');
-    echo html_writer::select($participantoptions, 'userid', $showallusers ? -1 : $targetuser->id, false, [
+    echo html_writer::start_tag('select', [
+        'name' => 'userid',
         'id' => 'kopfuebung-userid',
         'class' => 'custom-select',
     ]);
+    echo html_writer::tag('option', get_string('allparticipants', 'kopfuebung'), [
+        'value' => -1,
+        'selected' => $showallusers ? 'selected' : null,
+    ]);
+    echo html_writer::tag('option', get_string('participantseparator', 'kopfuebung'), [
+        'value' => '',
+        'disabled' => 'disabled',
+    ]);
+    foreach ($participants as $participant) {
+        echo html_writer::tag('option', fullname($participant), [
+            'value' => $participant->id,
+            'selected' => !$showallusers && $targetuser->id == $participant->id ? 'selected' : null,
+        ]);
+    }
+    echo html_writer::end_tag('select');
     echo html_writer::end_div();
     echo html_writer::tag('button', get_string('show'), ['type' => 'submit', 'class' => 'btn btn-secondary']);
     echo html_writer::end_tag('form');
@@ -145,6 +162,15 @@ if (!$activities) {
 
         $row = [$rowlabel];
         foreach ($activities as $activity) {
+            if (!$canmanage && $activity->activitystate) {
+                $row[] = html_writer::span(
+                    get_string('resultswithheldshort', 'kopfuebung'),
+                    'text-muted',
+                    ['title' => get_string('resultsavailableafteractivity', 'kopfuebung')]
+                );
+                continue;
+            }
+
             if ($showallusers) {
                 $cell = $matrix[$activity->id]['cells'][$position];
                 $percentage = $matrix[$activity->id]['participantcount'] > 0
@@ -198,12 +224,16 @@ if (!$activities) {
                 : 0;
             $sumrow[] = $percentage . '%';
         } else {
-            $sumrow[] = $result['attemptid']
-                ? get_string('scoreoutof', 'kopfuebung', [
+            if (!$canmanage && $activity->activitystate) {
+                $sumrow[] = get_string('resultswithheldshort', 'kopfuebung');
+            } else if ($result['attemptid']) {
+                $sumrow[] = get_string('scoreoutof', 'kopfuebung', [
                     'score' => $result['correct'],
                     'total' => count($result['cells']),
-                ])
-                : get_string('notattempted', 'kopfuebung');
+                ]);
+            } else {
+                $sumrow[] = get_string('notattempted', 'kopfuebung');
+            }
         }
     }
     $table->data[] = $sumrow;
