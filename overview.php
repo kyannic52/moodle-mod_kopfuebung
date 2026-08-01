@@ -14,7 +14,7 @@ require_login($course);
 require_capability('mod/kopfuebung:viewoverview', $context);
 
 $canmanage = has_capability('mod/kopfuebung:manageoverview', $context);
-$showallusers = $canmanage && $userid === -1;
+$showallusers = $canmanage && ($userid === 0 || $userid === -1);
 $targetuser = $USER;
 
 if ($canmanage && !$showallusers && $userid && $userid != $USER->id) {
@@ -44,28 +44,33 @@ if ($canmanage && data_submitted()) {
 
 $activities = kopfuebung_get_course_activities($course);
 $labels = kopfuebung_get_course_labels($course->id);
-$participants = [];
-if ($canmanage) {
-    $participants = get_enrolled_users(
-        $context,
-        '',
-        0,
-        'u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename',
-        'u.lastname ASC, u.firstname ASC'
-    );
-}
+$participants = get_enrolled_users(
+    $context,
+    'mod/kopfuebung:attempt',
+    0,
+    'u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename',
+    'u.lastname ASC, u.firstname ASC',
+    0,
+    0,
+    true
+);
+$groupmatrix = kopfuebung_get_group_matrix($activities, array_keys($participants));
 $matrix = $showallusers
-    ? kopfuebung_get_group_matrix($activities, array_keys($participants))
+    ? $groupmatrix
     : kopfuebung_get_user_matrix($activities, $targetuser->id);
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('courseoverview', 'kopfuebung'));
 
 if ($canmanage) {
-    $participantoptions = [-1 => get_string('allparticipants', 'kopfuebung'), $USER->id => fullname($USER)];
+    $studentoptions = [];
     foreach ($participants as $participant) {
-        $participantoptions[$participant->id] = fullname($participant);
+        $studentoptions[$participant->id] = fullname($participant);
     }
+    $participantoptions = [
+        -1 => get_string('allparticipants', 'kopfuebung'),
+        get_string('participantseparator', 'kopfuebung') => $studentoptions,
+    ];
 
     echo html_writer::start_tag('form', [
         'method' => 'get',
@@ -153,6 +158,7 @@ if (!$activities) {
             }
 
             $state = $matrix[$activity->id]['cells'][$position];
+            $comparison = $groupmatrix[$activity->id]['cells'][$position];
             $indicator = [
                 'correct' => ['✓', 'success'],
                 'partiallycorrect' => ['◐', 'warning'],
@@ -160,7 +166,7 @@ if (!$activities) {
                 'unanswered' => ['—', 'muted'],
                 'notattempted' => ['—', 'muted'],
             ][$state];
-            $row[] = html_writer::span(
+            $content = html_writer::span(
                 $indicator[0] . html_writer::span(
                     get_string($state, 'kopfuebung'),
                     'sr-only'
@@ -168,6 +174,16 @@ if (!$activities) {
                 'text-' . $indicator[1] . ' font-weight-bold',
                 ['title' => get_string($state, 'kopfuebung')]
             );
+            $content .= ' ' . html_writer::span(
+                get_string('classcomparison', 'kopfuebung', [
+                    'correct' => $comparison['correct'],
+                    'answered' => $comparison['answered'],
+                ]),
+                'kopfuebung-comparison'
+            );
+            $cell = new html_table_cell($content);
+            $cell->attributes['class'] = 'kopfuebung-result-cell kopfuebung-result-' . $state;
+            $row[] = $cell;
         }
         $table->data[] = $row;
     }
