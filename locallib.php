@@ -260,11 +260,15 @@ function kopfuebung_get_course_activities(stdClass $course): array {
  * @param int $courseid
  * @return string[]
  */
-function kopfuebung_get_course_labels(int $courseid): array {
+function kopfuebung_get_course_labels(int $courseid, int $gridid = 0): array {
     global $DB;
 
     $labels = array_fill(1, 10, '');
-    $records = $DB->get_records('kopfuebung_labels', ['courseid' => $courseid], 'position ASC');
+    $records = $DB->get_records(
+        'kopfuebung_labels',
+        ['courseid' => $courseid, 'gridid' => $gridid],
+        'position ASC'
+    );
     foreach ($records as $record) {
         if ($record->position >= 1 && $record->position <= 10) {
             $labels[$record->position] = $record->label;
@@ -279,7 +283,7 @@ function kopfuebung_get_course_labels(int $courseid): array {
  * @param int $courseid
  * @param array $labels
  */
-function kopfuebung_save_course_labels(int $courseid, array $labels): void {
+function kopfuebung_save_course_labels(int $courseid, array $labels, int $gridid = 0): void {
     global $DB;
 
     $transaction = $DB->start_delegated_transaction();
@@ -287,6 +291,7 @@ function kopfuebung_save_course_labels(int $courseid, array $labels): void {
         $label = trim(clean_param($labels[$position] ?? '', PARAM_TEXT));
         $record = $DB->get_record('kopfuebung_labels', [
             'courseid' => $courseid,
+            'gridid' => $gridid,
             'position' => $position,
         ]);
 
@@ -304,6 +309,7 @@ function kopfuebung_save_course_labels(int $courseid, array $labels): void {
         } else {
             $DB->insert_record('kopfuebung_labels', (object) [
                 'courseid' => $courseid,
+                'gridid' => $gridid,
                 'position' => $position,
                 'label' => $label,
                 'timemodified' => time(),
@@ -311,6 +317,74 @@ function kopfuebung_save_course_labels(int $courseid, array $labels): void {
         }
     }
     $transaction->allow_commit();
+}
+
+/**
+ * Return the additional label grids in a course, keyed by their first activity CM id.
+ *
+ * @param int $courseid
+ * @return stdClass[]
+ */
+function kopfuebung_get_course_label_grids(int $courseid): array {
+    global $DB;
+
+    $records = $DB->get_records('kopfuebung_labelgrids', ['courseid' => $courseid], 'id ASC');
+    $grids = [];
+    foreach ($records as $record) {
+        $record->labels = kopfuebung_get_course_labels($courseid, $record->id);
+        $grids[(int) $record->startcmid] = $record;
+    }
+    return $grids;
+}
+
+/**
+ * Create a label grid starting at a specific Kopfuebung course module.
+ *
+ * @param int $courseid
+ * @param int $startcmid
+ * @return int
+ */
+function kopfuebung_create_course_label_grid(int $courseid, int $startcmid): int {
+    global $DB;
+
+    $cm = get_coursemodule_from_id('kopfuebung', $startcmid, $courseid, false, MUST_EXIST);
+    $existing = $DB->get_record('kopfuebung_labelgrids', [
+        'courseid' => $courseid,
+        'startcmid' => $cm->id,
+    ]);
+    if ($existing) {
+        return (int) $existing->id;
+    }
+
+    $now = time();
+    return $DB->insert_record('kopfuebung_labelgrids', (object) [
+        'courseid' => $courseid,
+        'startcmid' => $cm->id,
+        'timecreated' => $now,
+        'timemodified' => $now,
+    ]);
+}
+
+/**
+ * Return the label grid that applies to a specific Kopfuebung activity.
+ *
+ * @param stdClass $course
+ * @param int $cmid
+ * @return string[]
+ */
+function kopfuebung_get_effective_course_labels(stdClass $course, int $cmid): array {
+    $labels = kopfuebung_get_course_labels($course->id);
+    $grids = kopfuebung_get_course_label_grids($course->id);
+
+    foreach (kopfuebung_get_course_activities($course) as $activity) {
+        if (isset($grids[$activity->cmid])) {
+            $labels = $grids[$activity->cmid]->labels;
+        }
+        if ((int) $activity->cmid === $cmid) {
+            break;
+        }
+    }
+    return $labels;
 }
 
 /**

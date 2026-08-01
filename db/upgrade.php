@@ -65,5 +65,51 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026073002, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080201) {
+        $gridtable = new xmldb_table('kopfuebung_labelgrids');
+        $gridtable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $gridtable->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $gridtable->add_field('startcmid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $gridtable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $gridtable->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $gridtable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $gridtable->add_key('coursefk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        $gridtable->add_index('course_startcm', XMLDB_INDEX_UNIQUE, ['courseid', 'startcmid']);
+
+        if (!$dbman->table_exists($gridtable)) {
+            $dbman->create_table($gridtable);
+        }
+
+        $labeltable = new xmldb_table('kopfuebung_labels');
+        $gridfield = new xmldb_field(
+            'gridid',
+            XMLDB_TYPE_INTEGER,
+            '10',
+            null,
+            XMLDB_NOTNULL,
+            null,
+            '0',
+            'courseid'
+        );
+        if (!$dbman->field_exists($labeltable, $gridfield)) {
+            $dbman->add_field($labeltable, $gridfield);
+        }
+
+        $oldindex = new xmldb_index('course_position', XMLDB_INDEX_UNIQUE, ['courseid', 'position']);
+        if ($dbman->index_exists($labeltable, $oldindex)) {
+            $dbman->drop_index($labeltable, $oldindex);
+        }
+        $newindex = new xmldb_index(
+            'course_grid_position',
+            XMLDB_INDEX_UNIQUE,
+            ['courseid', 'gridid', 'position']
+        );
+        if (!$dbman->index_exists($labeltable, $newindex)) {
+            $dbman->add_index($labeltable, $newindex);
+        }
+
+        upgrade_mod_savepoint(true, 2026080201, 'kopfuebung');
+    }
+
     return true;
 }

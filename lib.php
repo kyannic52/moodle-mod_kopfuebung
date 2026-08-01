@@ -42,6 +42,15 @@ function kopfuebung_delete_instance($id) {
         return false;
     }
 
+    $cm = get_coursemodule_from_instance('kopfuebung', $id, 0, false, IGNORE_MISSING);
+    if ($cm) {
+        $labelgrid = $DB->get_record('kopfuebung_labelgrids', ['startcmid' => $cm->id]);
+        if ($labelgrid) {
+            $DB->delete_records('kopfuebung_labels', ['gridid' => $labelgrid->id]);
+            $DB->delete_records('kopfuebung_labelgrids', ['id' => $labelgrid->id]);
+        }
+    }
+
     $attemptids = $DB->get_fieldset_select('kopfuebung_attempts', 'id', 'kopfuebungid = ?', [$id]);
     $questionusageids = $DB->get_fieldset_select(
         'kopfuebung_attempts',

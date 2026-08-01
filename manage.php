@@ -43,7 +43,7 @@ foreach ($selectedquestions as $selectedquestion) {
         $selectedbyposition[(int) $selectedquestion->sortorder] = (int) $selectedquestion->questionid;
     }
 }
-$labels = kopfuebung_get_course_labels($course->id);
+$labels = kopfuebung_get_effective_course_labels($course, $cm->id);
 
 $questionoptions = [0 => get_string('noquestionselected', 'kopfuebung')];
 foreach ($availablequestions as $question) {

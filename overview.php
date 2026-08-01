@@ -35,15 +35,38 @@ $PAGE->set_title(get_string('courseoverview', 'kopfuebung'));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
+$activities = kopfuebung_get_course_activities($course);
+$defaultlabels = kopfuebung_get_course_labels($course->id);
+$labelgrids = kopfuebung_get_course_label_grids($course->id);
+
 if ($canmanage && data_submitted()) {
     require_sesskey();
-    $labels = optional_param_array('labels', [], PARAM_TEXT);
-    kopfuebung_save_course_labels($course->id, $labels);
+    $submittedlabels = optional_param_array('labels', [], PARAM_TEXT);
+    $labelsbygrid = [];
+    $validgridids = [0 => true];
+    foreach ($labelgrids as $grid) {
+        $validgridids[(int) $grid->id] = true;
+    }
+    foreach ($submittedlabels as $key => $label) {
+        if (preg_match('/^(\d+)_(\d+)$/', (string) $key, $matches)) {
+            $gridid = (int) $matches[1];
+            $position = (int) $matches[2];
+            if (isset($validgridids[$gridid]) && $position >= 1 && $position <= 10) {
+                $labelsbygrid[$gridid][$position] = $label;
+            }
+        }
+    }
+    foreach ($labelsbygrid as $gridid => $gridlabels) {
+        kopfuebung_save_course_labels($course->id, $gridlabels, $gridid);
+    }
+
+    $newgridbefore = optional_param('newgridbefore', 0, PARAM_INT);
+    if ($newgridbefore) {
+        kopfuebung_create_course_label_grid($course->id, $newgridbefore);
+        redirect($PAGE->url, get_string('labelgridcreated', 'kopfuebung'), null, \core\output\notification::NOTIFY_SUCCESS);
+    }
     redirect($PAGE->url, get_string('labelssaved', 'kopfuebung'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
-
-$activities = kopfuebung_get_course_activities($course);
-$labels = kopfuebung_get_course_labels($course->id);
 $enrolledusers = get_enrolled_users(
     $context,
     '',
@@ -104,6 +127,13 @@ if ($canmanage) {
     echo html_writer::end_div();
     echo html_writer::tag('button', get_string('show'), ['type' => 'submit', 'class' => 'btn btn-secondary']);
     echo html_writer::end_tag('form');
+
+    echo $OUTPUT->single_button(
+        new moodle_url('/mod/kopfuebung/labelgrids.php', ['id' => $course->id]),
+        get_string('managelabelgrids', 'kopfuebung'),
+        'get',
+        ['class' => 'mb-4']
+    );
 }
 
 echo $OUTPUT->heading(
@@ -128,40 +158,64 @@ if (!$activities) {
     $table = new html_table();
     $table->attributes['class'] = 'generaltable kopfuebung-overview';
     $table->head = [get_string('topic', 'kopfuebung')];
-    foreach ($activities as $activity) {
-        $table->head[] = html_writer::link(
+    foreach ($activities as $activityindex => $activity) {
+        if (isset($labelgrids[$activity->cmid])) {
+            $table->head[] = get_string('topic', 'kopfuebung');
+        }
+        $activityheading = html_writer::link(
             new moodle_url('/mod/kopfuebung/view.php', ['id' => $activity->cmid]),
             format_string($activity->name)
         );
+        if ($canmanage && $activityindex > 0 && !isset($labelgrids[$activity->cmid])) {
+            $activityheading .= html_writer::div(html_writer::tag(
+                'button',
+                get_string('newgridbeforeactivity', 'kopfuebung'),
+                [
+                    'type' => 'submit',
+                    'name' => 'newgridbefore',
+                    'value' => $activity->cmid,
+                    'class' => 'btn btn-link btn-sm p-0 mt-1',
+                ]
+            ));
+        }
+        $table->head[] = $activityheading;
     }
 
-    for ($position = 1; $position <= 10; $position++) {
+    $renderlabel = static function(int $gridid, array $gridlabels, int $position) use ($canmanage): string {
         if ($canmanage) {
+            $inputid = 'kopfuebung-label-' . $gridid . '-' . $position;
             $input = html_writer::empty_tag('input', [
                 'type' => 'text',
-                'name' => 'labels[' . $position . ']',
-                'id' => 'kopfuebung-label-' . $position,
-                'value' => $labels[$position],
+                'name' => 'labels[' . $gridid . '_' . $position . ']',
+                'id' => $inputid,
+                'value' => $gridlabels[$position],
                 'maxlength' => 255,
                 'class' => 'form-control',
                 'placeholder' => get_string('rowlabel', 'kopfuebung', $position),
             ]);
-            $rowlabel = html_writer::label(
+            return html_writer::label(
                 get_string('rowprefix', 'kopfuebung', $position),
-                'kopfuebung-label-' . $position,
+                $inputid,
                 false,
                 ['class' => 'font-weight-bold mr-2']
-            );
-            $rowlabel .= $input;
-        } else {
-            $rowlabel = get_string('rowheading', 'kopfuebung', [
-                'position' => $position,
-                'label' => $labels[$position] !== '' ? s($labels[$position]) : get_string('unlabelled', 'kopfuebung'),
-            ]);
+            ) . $input;
         }
 
-        $row = [$rowlabel];
+        return get_string('rowheading', 'kopfuebung', [
+            'position' => $position,
+            'label' => $gridlabels[$position] !== ''
+                ? s($gridlabels[$position])
+                : get_string('unlabelled', 'kopfuebung'),
+        ]);
+    };
+
+    for ($position = 1; $position <= 10; $position++) {
+        $row = [$renderlabel(0, $defaultlabels, $position)];
         foreach ($activities as $activity) {
+            if (isset($labelgrids[$activity->cmid])) {
+                $grid = $labelgrids[$activity->cmid];
+                $row[] = $renderlabel((int) $grid->id, $grid->labels, $position);
+            }
             if (!$canmanage && $activity->activitystate) {
                 $row[] = html_writer::span(
                     get_string('resultswithheldshort', 'kopfuebung'),
@@ -216,6 +270,9 @@ if (!$activities) {
 
     $sumrow = [html_writer::tag('strong', get_string('sum', 'kopfuebung'))];
     foreach ($activities as $activity) {
+        if (isset($labelgrids[$activity->cmid])) {
+            $sumrow[] = html_writer::tag('strong', get_string('sum', 'kopfuebung'));
+        }
         $result = $matrix[$activity->id];
         if ($showallusers) {
             $totalpossible = $result['participantcount'] * count($result['cells']);

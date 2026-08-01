@@ -67,7 +67,7 @@ if (data_submitted()) {
     );
 }
 
-$labels = kopfuebung_get_course_labels($course->id);
+$labels = kopfuebung_get_effective_course_labels($course, $cm->id);
 $positionlabel = get_string('positionwithlabel', 'kopfuebung', [
     'position' => $position,
     'label' => $labels[$position] !== '' ? $labels[$position] : get_string('unlabelled', 'kopfuebung'),
