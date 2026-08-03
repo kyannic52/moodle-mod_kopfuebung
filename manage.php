@@ -23,7 +23,12 @@ $availablequestions = kopfuebung_get_available_questions($course);
 if (data_submitted()) {
     require_sesskey();
     $assignments = optional_param_array('assignments', [], PARAM_INT);
-    kopfuebung_save_question_assignments($kopfuebung->id, $assignments, $availablequestions);
+    kopfuebung_save_question_assignments(
+        $kopfuebung->id,
+        $assignments,
+        $availablequestions,
+        (int) $kopfuebung->questioncount
+    );
     redirect(
         $PAGE->url,
         get_string('questionassignmentssaved', 'kopfuebung'),
@@ -39,7 +44,7 @@ $selectedquestions = $DB->get_records(
 );
 $selectedbyposition = [];
 foreach ($selectedquestions as $selectedquestion) {
-    if ($selectedquestion->sortorder >= 1 && $selectedquestion->sortorder <= 10) {
+    if ($selectedquestion->sortorder >= 1 && $selectedquestion->sortorder <= $kopfuebung->questioncount) {
         $selectedbyposition[(int) $selectedquestion->sortorder] = (int) $selectedquestion->questionid;
     }
 }
@@ -73,7 +78,7 @@ $table->head = [
     get_string('actions'),
 ];
 
-for ($position = 1; $position <= 10; $position++) {
+for ($position = 1; $position <= $kopfuebung->questioncount; $position++) {
     $positionlabel = get_string('positionwithlabel', 'kopfuebung', [
         'position' => $position,
         'label' => $labels[$position] !== '' ? $labels[$position] : get_string('unlabelled', 'kopfuebung'),

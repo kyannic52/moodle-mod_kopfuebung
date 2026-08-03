@@ -157,18 +157,20 @@ function kopfuebung_get_question_categories(stdClass $course): array {
 }
 
 /**
- * Persist the complete ten-position question assignment.
+ * Persist the complete question assignment for an activity.
  *
  * Existing records are retained when possible so references remain stable.
  *
  * @param int $kopfuebungid
  * @param array $assignments position => question id
  * @param stdClass[] $availablequestions
+ * @param int $questioncount
  */
 function kopfuebung_save_question_assignments(
     int $kopfuebungid,
     array $assignments,
-    array $availablequestions
+    array $availablequestions,
+    int $questioncount = 10
 ): void {
     global $DB;
 
@@ -176,7 +178,7 @@ function kopfuebung_save_question_assignments(
     foreach ($assignments as $position => $questionid) {
         $position = (int) $position;
         $questionid = (int) $questionid;
-        if ($position < 1 || $position > 10 || !$questionid) {
+        if ($position < 1 || $position > $questioncount || !$questionid) {
             continue;
         }
         if (!isset($availablequestions[$questionid])) {

@@ -111,5 +111,16 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080201, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080300) {
+        $table = new xmldb_table('kopfuebung');
+        $field = new xmldb_field(
+            'questioncount', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '10', 'timelimit'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026080300, 'kopfuebung');
+    }
+
     return true;
 }

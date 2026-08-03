@@ -22,7 +22,23 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
         $mform->addHelpButton('timelimit', 'timelimit', 'kopfuebung');
         $mform->addRule('timelimit', null, 'required', null, 'client');
 
+        $mform->addElement('select', 'questioncount', get_string('questioncount', 'kopfuebung'), [
+            8 => 8,
+            9 => 9,
+            10 => 10,
+        ]);
+        $mform->setDefault('questioncount', 10);
+        $mform->addHelpButton('questioncount', 'questioncount', 'kopfuebung');
+
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
+    }
+
+    public function validation($data, $files) {
+        $errors = parent::validation($data, $files);
+        if (!in_array((int) ($data['questioncount'] ?? 0), [8, 9, 10], true)) {
+            $errors['questioncount'] = get_string('invalidquestioncount', 'kopfuebung');
+        }
+        return $errors;
     }
 }

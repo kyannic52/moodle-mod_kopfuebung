@@ -54,7 +54,12 @@ if (!$kopfuebung->activitystate) {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]), get_string('activityisclosed', 'kopfuebung'));
 }
 
-$questions = $DB->get_records('kopfuebung_questions', ['kopfuebungid' => $kopfuebung->id], 'sortorder ASC, id ASC');
+$questions = $DB->get_records_select(
+    'kopfuebung_questions',
+    'kopfuebungid = :kopfuebungid AND sortorder <= :questioncount',
+    ['kopfuebungid' => $kopfuebung->id, 'questioncount' => $kopfuebung->questioncount],
+    'sortorder ASC, id ASC'
+);
 if (!$questions) {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]), get_string('missingquestions', 'kopfuebung'));
 }

@@ -17,7 +17,7 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:managequestions', $context);
 
-if ($position < 1 || $position > 10) {
+if ($position < 1 || $position > $kopfuebung->questioncount) {
     throw new moodle_exception('invalidposition', 'kopfuebung');
 }
 
@@ -39,7 +39,7 @@ $selectedrecords = $DB->get_records(
 );
 $assignments = [];
 foreach ($selectedrecords as $record) {
-    if ($record->sortorder >= 1 && $record->sortorder <= 10) {
+    if ($record->sortorder >= 1 && $record->sortorder <= $kopfuebung->questioncount) {
         $assignments[(int) $record->sortorder] = (int) $record->questionid;
     }
 }
@@ -58,7 +58,12 @@ if (data_submitted()) {
     }
 
     $assignments[$position] = $questionid;
-    kopfuebung_save_question_assignments($kopfuebung->id, $assignments, $allquestions);
+    kopfuebung_save_question_assignments(
+        $kopfuebung->id,
+        $assignments,
+        $allquestions,
+        (int) $kopfuebung->questioncount
+    );
     redirect(
         new moodle_url('/mod/kopfuebung/manage.php', ['id' => $cm->id]),
         get_string('questionassigned', 'kopfuebung'),
