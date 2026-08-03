@@ -85,4 +85,15 @@ $capabilities = [
             'manager' => CAP_ALLOW,
         ],
     ],
+
+    'mod/kopfuebung:givefeedback' => [
+        'riskbitmask' => RISK_PERSONAL | RISK_XSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [
+            'teacher' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW,
+        ],
+    ],
 ];

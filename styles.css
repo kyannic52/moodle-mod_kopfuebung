@@ -98,6 +98,33 @@
     text-align: center;
 }
 
+.kopfuebung-feedback-message {
+    border-left: .35rem solid;
+    border-radius: .25rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+}
+
+.kopfuebung-feedback-course {
+    background: #e7f3ff;
+    border-left-color: #0f6fc5;
+}
+
+.kopfuebung-feedback-individual {
+    background: #fff3cd;
+    border-left-color: #f0ad4e;
+}
+
+.kopfuebung-feedback-own-message {
+    margin-left: 2rem;
+}
+
+.kopfuebung-feedback-meta {
+    color: #495057;
+    font-size: .875rem;
+    margin-bottom: .5rem;
+}
+
 @media (max-width: 767.98px) {
     #kopfuebung-timer.kopfuebung-timer-fixed {
         top: 3.75rem;

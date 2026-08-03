@@ -36,6 +36,17 @@ class provider implements \core_privacy\local\metadata\provider {
             'privacy:metadata:kopfuebung_ready'
         );
 
+        $collection->add_database_table(
+            'kopfuebung_feedback',
+            [
+                'userid' => 'privacy:metadata:kopfuebung_feedback:userid',
+                'authorid' => 'privacy:metadata:kopfuebung_feedback:authorid',
+                'message' => 'privacy:metadata:kopfuebung_feedback:message',
+                'timecreated' => 'privacy:metadata:kopfuebung_feedback:timecreated',
+            ],
+            'privacy:metadata:kopfuebung_feedback'
+        );
+
         return $collection;
     }
 }

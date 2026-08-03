@@ -122,5 +122,26 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080300, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080301) {
+        $table = new xmldb_table('kopfuebung_feedback');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('authorid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('message', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL);
+        $table->add_field('messageformat', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('coursefk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        $table->add_key('authorfk', XMLDB_KEY_FOREIGN, ['authorid'], 'user', ['id']);
+        $table->add_index('course_recipient', XMLDB_INDEX_NOTUNIQUE, ['courseid', 'userid']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+        upgrade_mod_savepoint(true, 2026080301, 'kopfuebung');
+    }
+
     return true;
 }

@@ -3,6 +3,7 @@
 
 require_once(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/locallib.php');
+require_once(__DIR__ . '/classes/form/feedback_form.php');
 
 $id = required_param('id', PARAM_INT);
 $userid = optional_param('userid', 0, PARAM_INT);
@@ -14,10 +15,12 @@ require_login($course);
 require_capability('mod/kopfuebung:viewoverview', $context);
 
 $canmanage = has_capability('mod/kopfuebung:manageoverview', $context);
-$showallusers = $canmanage && ($userid === 0 || $userid === -1);
+$canfeedback = has_capability('mod/kopfuebung:givefeedback', $context);
+$canselectparticipant = $canmanage || $canfeedback;
+$showallusers = $canselectparticipant && ($userid === 0 || $userid === -1);
 $targetuser = $USER;
 
-if ($canmanage && !$showallusers && $userid && $userid != $USER->id) {
+if ($canselectparticipant && !$showallusers && $userid && $userid != $USER->id) {
     $targetuser = $DB->get_record('user', ['id' => $userid, 'deleted' => 0], '*', MUST_EXIST);
     if (!is_enrolled($context, $targetuser, '', true)) {
         throw new moodle_exception('notenrolled', 'enrol');
@@ -38,8 +41,45 @@ $PAGE->set_context($context);
 $activities = kopfuebung_get_course_activities($course);
 $defaultlabels = kopfuebung_get_course_labels($course->id);
 $labelgrids = kopfuebung_get_course_label_grids($course->id);
+$participants = kopfuebung_get_course_participants($course, $activities);
 
-if ($canmanage && data_submitted()) {
+if (!$showallusers && !isset($participants[$targetuser->id])) {
+    throw new moodle_exception('invalidparticipant', 'kopfuebung');
+}
+
+$feedbacktargetid = $showallusers ? 0 : (int) $targetuser->id;
+$canreply = !$showallusers && $feedbacktargetid === (int) $USER->id && $DB->record_exists(
+    'kopfuebung_feedback',
+    ['courseid' => $course->id, 'userid' => $feedbacktargetid]
+);
+$feedbackform = new \mod_kopfuebung\form\feedback_form($PAGE->url, ['context' => $context]);
+$feedbackform->set_data((object) [
+    'id' => $course->id,
+    'userid' => $showallusers ? -1 : $feedbacktargetid,
+]);
+
+if ($feedbackdata = $feedbackform->get_data()) {
+    $maypost = $canfeedback || $canreply;
+    if (!$maypost) {
+        throw new moodle_exception('nopermissions', 'error');
+    }
+
+    $message = $feedbackdata->message_editor;
+    $now = time();
+    $DB->insert_record('kopfuebung_feedback', (object) [
+        'courseid' => $course->id,
+        'userid' => $feedbacktargetid,
+        'authorid' => $USER->id,
+        'message' => $message['text'],
+        'messageformat' => $message['format'],
+        'timecreated' => $now,
+        'timemodified' => $now,
+    ]);
+    redirect($PAGE->url, get_string('feedbacksent', 'kopfuebung'), null,
+        \core\output\notification::NOTIFY_SUCCESS);
+}
+
+if ($canmanage && optional_param('action', '', PARAM_ALPHA) === 'savelabels') {
     require_sesskey();
     $submittedlabels = optional_param_array('labels', [], PARAM_TEXT);
     $labelsbygrid = [];
@@ -67,7 +107,6 @@ if ($canmanage && data_submitted()) {
     }
     redirect($PAGE->url, get_string('labelssaved', 'kopfuebung'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
-$participants = kopfuebung_get_course_participants($course, $activities);
 $groupmatrix = kopfuebung_get_group_matrix($activities, array_keys($participants));
 $matrix = $showallusers
     ? $groupmatrix
@@ -76,7 +115,7 @@ $matrix = $showallusers
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('courseoverview', 'kopfuebung'));
 
-if ($canmanage) {
+if ($canselectparticipant) {
     echo html_writer::start_tag('form', [
         'method' => 'get',
         'action' => (new moodle_url('/mod/kopfuebung/overview.php'))->out(false),
@@ -134,6 +173,7 @@ if (!$activities) {
     if ($canmanage) {
         echo html_writer::start_tag('form', ['method' => 'post', 'action' => $PAGE->url->out(false)]);
         echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+        echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'savelabels']);
     }
 
     $table = new html_table();
@@ -332,6 +372,51 @@ if (!$activities) {
         ]);
         echo html_writer::end_tag('form');
     }
+}
+
+$feedbackparams = ['courseid' => $course->id];
+if ($showallusers) {
+    $feedbackwhere = 'courseid = :courseid AND userid = 0';
+} else {
+    $feedbackwhere = 'courseid = :courseid AND (userid = 0 OR userid = :userid)';
+    $feedbackparams['userid'] = $feedbacktargetid;
+}
+$feedbackmessages = $DB->get_records_select(
+    'kopfuebung_feedback',
+    $feedbackwhere,
+    $feedbackparams,
+    'timecreated ASC, id ASC'
+);
+
+echo $OUTPUT->heading(get_string('feedback', 'kopfuebung'), 3);
+if (!$feedbackmessages) {
+    echo $OUTPUT->notification(get_string('nofeedbackyet', 'kopfuebung'), 'notifymessage');
+}
+foreach ($feedbackmessages as $feedbackmessage) {
+    $author = $DB->get_record('user', ['id' => $feedbackmessage->authorid], '*', MUST_EXIST);
+    $iscoursefeedback = empty($feedbackmessage->userid);
+    $scope = get_string($iscoursefeedback ? 'feedbackforcourse' : 'individualfeedback', 'kopfuebung');
+    $meta = html_writer::tag('strong', fullname($author)) . ' · ' .
+        userdate($feedbackmessage->timecreated) . ' · ' .
+        html_writer::span($scope, 'badge ' . ($iscoursefeedback ? 'badge-primary' : 'badge-warning'));
+    $content = format_text($feedbackmessage->message, $feedbackmessage->messageformat, [
+        'context' => $context,
+        'para' => false,
+    ]);
+    $classes = 'kopfuebung-feedback-message ' .
+        ($iscoursefeedback ? 'kopfuebung-feedback-course' : 'kopfuebung-feedback-individual');
+    if ((int) $feedbackmessage->authorid === (int) $USER->id) {
+        $classes .= ' kopfuebung-feedback-own-message';
+    }
+    echo html_writer::div(html_writer::div($meta, 'kopfuebung-feedback-meta') . $content, $classes);
+}
+
+if ($canfeedback || $canreply) {
+    $feedbackheading = $showallusers
+        ? get_string('feedbackforallparticipants', 'kopfuebung')
+        : get_string($canfeedback ? 'feedbackforuser' : 'replytofeedback', 'kopfuebung', fullname($targetuser));
+    echo $OUTPUT->heading($feedbackheading, 4);
+    $feedbackform->display();
 }
 
 echo $OUTPUT->footer();

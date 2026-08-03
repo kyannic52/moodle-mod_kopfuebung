@@ -23,3 +23,4 @@ Then visit **Site administration > Notifications** or run Moodle's CLI upgrade c
 - Courses containing a Kopfübung receive a course-navigation link to a ten-row diagnostic overview.
 - Students see their own correct, partially correct, incorrect, and unanswered results across all visible Kopfübungen.
 - Teachers can label the ten recurring question positions by topic and inspect an enrolled participant's matrix.
+- Teachers can give feedback to the whole course or hold a private feedback conversation with an individual student below the overview.
