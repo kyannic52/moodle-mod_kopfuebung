@@ -210,6 +210,20 @@ $matrix = $showallusers
     ? $groupmatrix
     : kopfuebung_get_user_matrix($activities, $targetuser->id);
 
+if ($canselectparticipant) {
+    $PAGE->requires->js_init_code(<<<JS
+var participantSelect = document.getElementById('kopfuebung-userid');
+if (participantSelect) {
+    participantSelect.addEventListener('change', function() {
+        if (participantSelect.value !== '') {
+            participantSelect.form.submit();
+        }
+    });
+}
+JS
+    );
+}
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('courseoverview', 'kopfuebung'));
 
