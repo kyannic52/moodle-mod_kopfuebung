@@ -21,6 +21,8 @@ class feedback_form extends \moodleform {
         $mform->setType('id', PARAM_INT);
         $mform->addElement('hidden', 'userid');
         $mform->setType('userid', PARAM_INT);
+        $mform->addElement('hidden', 'editfeedback', 0);
+        $mform->setType('editfeedback', PARAM_INT);
         $mform->addElement('hidden', 'action', 'postfeedback');
         $mform->setType('action', PARAM_ALPHA);
 
@@ -33,6 +35,9 @@ class feedback_form extends \moodleform {
         ]);
         $mform->addRule('message_editor', get_string('required'), 'required', null, 'client');
 
-        $this->add_action_buttons(false, get_string('sendfeedback', 'kopfuebung'));
+        $this->add_action_buttons(
+            !empty($this->_customdata['editmode']),
+            get_string($this->_customdata['editmode'] ? 'savefeedbackchanges' : 'sendfeedback', 'kopfuebung')
+        );
     }
 }

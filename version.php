@@ -4,7 +4,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_kopfuebung';
-$plugin->version = 2026080405;
+$plugin->version = 2026080406;
 $plugin->requires = 2022041900; // Moodle 4.0.
 $plugin->maturity = MATURITY_ALPHA;
 $plugin->release = '0.14.0';

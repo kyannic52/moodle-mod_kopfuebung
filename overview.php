@@ -7,6 +7,7 @@ require_once(__DIR__ . '/classes/form/feedback_form.php');
 
 $id = required_param('id', PARAM_INT);
 $userid = optional_param('userid', 0, PARAM_INT);
+$editfeedbackid = optional_param('editfeedback', 0, PARAM_INT);
 
 $course = $DB->get_record('course', ['id' => $id], '*', MUST_EXIST);
 $context = context_course::instance($course->id);
@@ -61,11 +62,43 @@ $canreply = !$showallusers && $feedbacktargetid === (int) $USER->id && $DB->reco
     'kopfuebung_feedback',
     ['courseid' => $course->id, 'userid' => $feedbacktargetid]
 );
-$feedbackform = new \mod_kopfuebung\form\feedback_form($PAGE->url, ['context' => $context]);
-$feedbackform->set_data((object) [
+$editingfeedback = null;
+if ($editfeedbackid) {
+    if (!$canfeedback) {
+        throw new moodle_exception('nopermissions', 'error');
+    }
+    $editingfeedback = $DB->get_record('kopfuebung_feedback', [
+        'id' => $editfeedbackid,
+        'courseid' => $course->id,
+        'authorid' => $USER->id,
+    ], '*', MUST_EXIST);
+    $editingfeedbackvisible = $showallusers
+        ? empty($editingfeedback->userid)
+        : (empty($editingfeedback->userid) || (int) $editingfeedback->userid === $feedbacktargetid);
+    if (!$editingfeedbackvisible) {
+        throw new moodle_exception('nopermissions', 'error');
+    }
+}
+$feedbackform = new \mod_kopfuebung\form\feedback_form($PAGE->url, [
+    'context' => $context,
+    'editmode' => (bool) $editingfeedback,
+]);
+$feedbackformdata = (object) [
     'id' => $course->id,
     'userid' => $showallusers ? -1 : $feedbacktargetid,
-]);
+    'editfeedback' => $editingfeedback->id ?? 0,
+];
+if ($editingfeedback) {
+    $feedbackformdata->message_editor = [
+        'text' => $editingfeedback->message,
+        'format' => $editingfeedback->messageformat,
+    ];
+}
+$feedbackform->set_data($feedbackformdata);
+
+if ($feedbackform->is_cancelled()) {
+    redirect($PAGE->url);
+}
 
 if ($feedbackdata = $feedbackform->get_data()) {
     $maypost = $canfeedback || $canreply;
@@ -75,6 +108,17 @@ if ($feedbackdata = $feedbackform->get_data()) {
 
     $message = $feedbackdata->message_editor;
     $now = time();
+    if (!empty($feedbackdata->editfeedback)) {
+        if (!$editingfeedback || (int) $feedbackdata->editfeedback !== (int) $editingfeedback->id) {
+            throw new moodle_exception('nopermissions', 'error');
+        }
+        $editingfeedback->message = $message['text'];
+        $editingfeedback->messageformat = $message['format'];
+        $editingfeedback->timemodified = max($now, (int) $editingfeedback->timecreated + 1);
+        $DB->update_record('kopfuebung_feedback', $editingfeedback);
+        redirect($PAGE->url, get_string('feedbackupdated', 'kopfuebung'), null,
+            \core\output\notification::NOTIFY_SUCCESS);
+    }
     $isstudentreply = $feedbacktargetid && (int) $USER->id === $feedbacktargetid;
     $feedbackteacher = null;
     if ($isstudentreply) {
@@ -360,10 +404,11 @@ if (!$activities) {
                 html_writer::span('↗', $iconclass, ['aria-hidden' => 'true']),
                 [
                     'class' => 'kopfuebung-additional-offer-link',
-                    'title' => get_string('configureadditionaloffer', 'kopfuebung', $label),
+                    'title' => get_string('additionaloffercountsexplanation', 'kopfuebung'),
                     'aria-label' => get_string('configureadditionaloffer', 'kopfuebung', $label),
                 ]
             );
+            $cell->attributes['title'] = get_string('additionaloffercountsexplanation', 'kopfuebung');
             if ($offer) {
                 $incorrectbyuser = array_fill_keys(array_keys($participants), 0);
                 foreach ($section->activities as $activity) {
@@ -400,30 +445,38 @@ if (!$activities) {
             return $cell;
         }
 
-        $tooltip = get_string('incorrectcategorycount', 'kopfuebung', [
-            'category' => $label,
-            'count' => $incorrectcount,
-        ]);
+        $tooltipblocks = [];
+        if ($isindividual) {
+            $tooltipblocks[] = get_string('additionalofferindividualreason', 'kopfuebung');
+        } else {
+            $tooltipblocks[] = get_string('incorrectcategorycount', 'kopfuebung', [
+                'category' => $label,
+                'count' => $incorrectcount,
+            ]);
+        }
         if (trim((string) $offer->hint) !== '') {
-            $tooltip .= "\n\n" . content_to_text(
+            $tooltipblocks[] = content_to_text(
                 format_text($offer->hint, $offer->hintformat, ['context' => $context]),
                 FORMAT_HTML
             );
         }
         $explanations = kopfuebung_resolve_offer_links($course, $offer, 'explanation');
         if ($explanations) {
-            $tooltip .= "\n\n" . get_string('explanationlinkintro', 'kopfuebung');
+            $explanationblock = get_string('explanationlinkintro', 'kopfuebung');
             foreach ($explanations as $explanation) {
-                $tooltip .= "\n" . $explanation['name'] . ' — ' . $explanation['url']->out(false);
+                $explanationblock .= "\n" . $explanation['name'] . ' — ' . $explanation['url']->out(false);
             }
+            $tooltipblocks[] = $explanationblock;
         }
         $practiceitems = kopfuebung_resolve_offer_links($course, $offer, 'practice');
         if ($practiceitems) {
-            $tooltip .= "\n\n" . get_string('practicelinkintro', 'kopfuebung');
+            $practiceblock = get_string('practicelinkintro', 'kopfuebung');
             foreach ($practiceitems as $practice) {
-                $tooltip .= "\n" . $practice['name'] . ' — ' . $practice['url']->out(false);
+                $practiceblock .= "\n" . $practice['name'] . ' — ' . $practice['url']->out(false);
             }
+            $tooltipblocks[] = $practiceblock;
         }
+        $tooltip = implode("\n\n", $tooltipblocks);
         $cell->text = html_writer::link(
             $url,
             html_writer::span('!', 'kopfuebung-additional-offer-student-icon', ['aria-hidden' => 'true']),
@@ -582,6 +635,9 @@ foreach ($feedbackmessages as $feedbackmessage) {
     $meta = html_writer::tag('strong', fullname($author)) . ' · ' .
         userdate($feedbackmessage->timecreated) . ' · ' .
         html_writer::span($scope, 'badge ' . ($iscoursefeedback ? 'badge-primary' : 'badge-warning'));
+    if ((int) $feedbackmessage->timemodified > (int) $feedbackmessage->timecreated) {
+        $meta .= ' · ' . html_writer::span(get_string('feedbackedited', 'kopfuebung'), 'text-muted');
+    }
     $content = format_text($feedbackmessage->message, $feedbackmessage->messageformat, [
         'context' => $context,
         'para' => false,
@@ -591,13 +647,24 @@ foreach ($feedbackmessages as $feedbackmessage) {
     if ((int) $feedbackmessage->authorid === (int) $USER->id) {
         $classes .= ' kopfuebung-feedback-own-message';
     }
+    if ($canfeedback && (int) $feedbackmessage->authorid === (int) $USER->id) {
+        $editparams = $urlparams;
+        $editparams['editfeedback'] = $feedbackmessage->id;
+        $content .= html_writer::div(html_writer::link(
+            new moodle_url('/mod/kopfuebung/overview.php', $editparams),
+            get_string('editfeedback', 'kopfuebung'),
+            ['class' => 'btn btn-link btn-sm p-0 mt-2']
+        ));
+    }
     echo html_writer::div(html_writer::div($meta, 'kopfuebung-feedback-meta') . $content, $classes);
 }
 
 if ($canfeedback || $canreply) {
-    $feedbackheading = $showallusers
-        ? get_string('feedbackforallparticipants', 'kopfuebung')
-        : get_string($canfeedback ? 'feedbackforuser' : 'replytofeedback', 'kopfuebung', fullname($targetuser));
+    $feedbackheading = $editingfeedback
+        ? get_string('editfeedbackheading', 'kopfuebung')
+        : ($showallusers
+            ? get_string('feedbackforallparticipants', 'kopfuebung')
+            : get_string($canfeedback ? 'feedbackforuser' : 'replytofeedback', 'kopfuebung', fullname($targetuser)));
     echo $OUTPUT->heading($feedbackheading, 4);
     $feedbackform->display();
 }
