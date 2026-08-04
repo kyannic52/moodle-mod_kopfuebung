@@ -50,6 +50,11 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:attempt', $context);
 
+$finishedattempt = kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id);
+if ($finishedattempt) {
+    redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
+}
+
 if (!$kopfuebung->activitystate) {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]), get_string('activityisclosed', 'kopfuebung'));
 }
@@ -100,6 +105,10 @@ if (data_submitted() && confirm_sesskey()) {
         $attempt->status = 'finished';
         $attempt->timefinished = $timenow;
         $DB->update_record('kopfuebung_attempts', $attempt);
+        $DB->delete_records('kopfuebung_ready', [
+            'kopfuebungid' => $kopfuebung->id,
+            'userid' => $USER->id,
+        ]);
         question_engine::save_questions_usage_by_activity($quba);
         $transaction->allow_commit();
         redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
@@ -117,6 +126,10 @@ if ($expired) {
     $attempt->status = 'finished';
     $attempt->timefinished = $timenow;
     $DB->update_record('kopfuebung_attempts', $attempt);
+    $DB->delete_records('kopfuebung_ready', [
+        'kopfuebungid' => $kopfuebung->id,
+        'userid' => $USER->id,
+    ]);
     question_engine::save_questions_usage_by_activity($quba);
     $transaction->allow_commit();
     redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));

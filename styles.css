@@ -185,6 +185,28 @@
     padding: 1rem;
 }
 
+.kopfuebung-review-link {
+    color: inherit;
+    display: block;
+    text-decoration: none;
+}
+
+.kopfuebung-review-link:hover,
+.kopfuebung-review-link:focus {
+    text-decoration: underline;
+}
+
+.kopfuebung-review-question {
+    border-radius: .25rem;
+    margin-bottom: 1.5rem;
+    scroll-margin-block: 25vh;
+}
+
+.kopfuebung-review-question:focus {
+    box-shadow: 0 0 0 .2rem rgba(15, 108, 191, .25);
+    outline: none;
+}
+
 @media (max-width: 767.98px) {
     #kopfuebung-timer.kopfuebung-timer-fixed {
         top: 3.75rem;

@@ -290,6 +290,61 @@ function kopfuebung_get_course_participants(stdClass $course, array $activities)
 }
 
 /**
+ * Return a user's latest finished attempt for an activity, regardless of later restarts.
+ *
+ * @param int $kopfuebungid
+ * @param int $userid
+ * @return stdClass|null
+ */
+function kopfuebung_get_latest_finished_attempt(int $kopfuebungid, int $userid): ?stdClass {
+    global $DB;
+
+    $attempts = $DB->get_records(
+        'kopfuebung_attempts',
+        ['kopfuebungid' => $kopfuebungid, 'userid' => $userid, 'status' => 'finished'],
+        'id DESC',
+        '*',
+        0,
+        1
+    );
+    $attempt = reset($attempts);
+    return $attempt ?: null;
+}
+
+/**
+ * Delete every attempt of one user for an activity so a clean retry is possible.
+ *
+ * @param int $kopfuebungid
+ * @param int $userid
+ */
+function kopfuebung_reset_user_attempts(int $kopfuebungid, int $userid): void {
+    global $CFG, $DB;
+
+    require_once($CFG->dirroot . '/question/engine/lib.php');
+
+    $attempts = $DB->get_records('kopfuebung_attempts', [
+        'kopfuebungid' => $kopfuebungid,
+        'userid' => $userid,
+    ]);
+    $transaction = $DB->start_delegated_transaction();
+    foreach ($attempts as $attempt) {
+        $DB->delete_records('kopfuebung_answers', ['attemptid' => $attempt->id]);
+        if (!empty($attempt->questionusageid)) {
+            question_engine::delete_questions_usage_by_activity($attempt->questionusageid);
+        }
+    }
+    $DB->delete_records('kopfuebung_attempts', [
+        'kopfuebungid' => $kopfuebungid,
+        'userid' => $userid,
+    ]);
+    $DB->delete_records('kopfuebung_ready', [
+        'kopfuebungid' => $kopfuebungid,
+        'userid' => $userid,
+    ]);
+    $transaction->allow_commit();
+}
+
+/**
  * Send a Moodle notification about feedback in the course overview.
  *
  * @param stdClass $course
@@ -639,6 +694,7 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
             'correct' => 0,
             'graded' => 0,
             'attemptid' => 0,
+            'finished' => false,
         ];
 
         $attempts = $DB->get_records(
@@ -669,6 +725,7 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
         try {
             $quba = question_engine::load_questions_usage_by_activity($attempt->questionusageid);
             $result['attemptid'] = $attempt->id;
+            $result['finished'] = $attempt->status === 'finished';
             $selectedquestions = $DB->get_records(
                 'kopfuebung_questions',
                 ['kopfuebungid' => $activity->id],

@@ -74,6 +74,16 @@ foreach ($participants as $participant) {
         $indicator[0] . ' ' . get_string($state, 'kopfuebung'),
         'text-' . $indicator[1] . ' font-weight-bold'
     );
+    if (!empty($usermatrix[$activity->id]['finished'])) {
+        $result = html_writer::link(
+            new moodle_url('/mod/kopfuebung/review.php', [
+                'id' => $cm->id,
+                'userid' => $participant->id,
+            ], 'question-' . $position),
+            $result,
+            ['title' => get_string('reviewquestionfor', 'kopfuebung', fullname($participant))]
+        );
+    }
     $row = new html_table_row([fullname($participant), $result]);
     $row->attributes['class'] = 'kopfuebung-result-' . $state;
     $table->data[] = $row;

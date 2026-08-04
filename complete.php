@@ -14,7 +14,7 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:attempt', $context);
 
-$attempt = kopfuebung_get_current_attempt($kopfuebung, $USER->id);
+$attempt = kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id);
 if (!$attempt || $attempt->status !== 'finished') {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]));
 }
@@ -83,6 +83,15 @@ $buttons = [
         'get'
     ),
 ];
+
+if (!$kopfuebung->activitystate) {
+    array_unshift($buttons, $OUTPUT->single_button(
+        new moodle_url('/mod/kopfuebung/review.php', ['id' => $cm->id]),
+        get_string('reviewattempt', 'kopfuebung'),
+        'get',
+        ['primary' => true]
+    ));
+}
 
 echo html_writer::div(implode(' ', $buttons), 'kopfuebung-actions');
 echo $OUTPUT->footer();

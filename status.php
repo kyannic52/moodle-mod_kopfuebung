@@ -22,6 +22,12 @@ $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
     'userid' => $USER->id,
 ]);
 $attempt = $canattempt ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
+$finishedattempt = $canattempt
+    ? kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id)
+    : null;
+if ($finishedattempt) {
+    $userready = false;
+}
 $remainingseconds = (int) $kopfuebung->timelimit;
 
 if ($canattempt && $kopfuebung->activitystate) {
@@ -34,7 +40,7 @@ if ($canattempt && $kopfuebung->activitystate) {
 $response = [
     'activitystate' => (bool) $kopfuebung->activitystate,
     'userready' => (bool) $userready,
-    'attemptfinished' => $attempt && $attempt->status === 'finished',
+    'attemptfinished' => (bool) $finishedattempt,
     'remainingseconds' => $remainingseconds,
 ];
 if ($canstart) {

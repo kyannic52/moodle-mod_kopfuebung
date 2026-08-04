@@ -27,7 +27,13 @@ $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
 ]);
 $readycount = $canstart ? $DB->count_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]) : 0;
 $attempt = $canattempt ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
-$attemptfinished = $attempt && $attempt->status === 'finished';
+$finishedattempt = $canattempt
+    ? kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id)
+    : null;
+$attemptfinished = (bool) $finishedattempt;
+if ($attemptfinished) {
+    $userready = false;
+}
 
 $remainingseconds = (int) $kopfuebung->timelimit;
 if ($canattempt && $kopfuebung->activitystate) {
@@ -203,6 +209,71 @@ if ($canattempt && !$attemptfinished && $kopfuebung->activitystate) {
         ['primary' => true]
     );
 }
+if ($canattempt && $attemptfinished && !$kopfuebung->activitystate) {
+    $buttons[] = $OUTPUT->single_button(
+        new moodle_url('/mod/kopfuebung/review.php', ['id' => $cm->id]),
+        get_string('reviewattempt', 'kopfuebung'),
+        'get',
+        ['primary' => true]
+    );
+}
 
 echo html_writer::div(implode(' ', $buttons), 'kopfuebung-actions');
+
+if (has_capability('mod/kopfuebung:resetattempts', $context)) {
+    $activityattempts = $DB->get_records(
+        'kopfuebung_attempts',
+        ['kopfuebungid' => $kopfuebung->id],
+        'userid ASC, id DESC'
+    );
+    $latestbyuser = [];
+    foreach ($activityattempts as $activityattempt) {
+        if (!isset($latestbyuser[$activityattempt->userid])) {
+            $latestbyuser[$activityattempt->userid] = $activityattempt;
+        }
+    }
+    if ($latestbyuser) {
+        $table = new html_table();
+        $table->attributes['class'] = 'generaltable mt-4';
+        $table->head = [
+            get_string('participant', 'kopfuebung'),
+            get_string('attemptstatus', 'kopfuebung'),
+            get_string('attempttime', 'kopfuebung'),
+            get_string('actions'),
+        ];
+        foreach ($latestbyuser as $studentattempt) {
+            $student = $DB->get_record('user', ['id' => $studentattempt->userid, 'deleted' => 0], '*', IGNORE_MISSING);
+            if (!$student || !is_enrolled($context, $student, '', true)) {
+                continue;
+            }
+            $actions = '';
+            if ($studentattempt->status === 'finished') {
+                $actions .= html_writer::link(
+                    new moodle_url('/mod/kopfuebung/review.php', [
+                        'id' => $cm->id,
+                        'userid' => $student->id,
+                    ]),
+                    get_string('reviewattempt', 'kopfuebung'),
+                    ['class' => 'btn btn-secondary btn-sm mr-2']
+                );
+            }
+            $actions .= html_writer::link(
+                new moodle_url('/mod/kopfuebung/resetattempt.php', [
+                    'id' => $cm->id,
+                    'userid' => $student->id,
+                ]),
+                get_string('resetattempt', 'kopfuebung'),
+                ['class' => 'btn btn-danger btn-sm']
+            );
+            $table->data[] = [
+                fullname($student),
+                get_string('attemptstatus' . $studentattempt->status, 'kopfuebung'),
+                userdate($studentattempt->timefinished ?: $studentattempt->timestarted),
+                $actions,
+            ];
+        }
+        echo $OUTPUT->heading(get_string('attemptmanagement', 'kopfuebung'), 3);
+        echo html_writer::div(html_writer::table($table), 'table-responsive');
+    }
+}
 echo $OUTPUT->footer();

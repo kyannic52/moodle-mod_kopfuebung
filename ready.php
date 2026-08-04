@@ -2,6 +2,7 @@
 // This file is part of Moodle - http://moodle.org/
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/locallib.php');
 
 $id = required_param('id', PARAM_INT);
 $cm = get_coursemodule_from_id('kopfuebung', $id, 0, false, MUST_EXIST);
@@ -12,6 +13,13 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:attempt', $context);
 require_sesskey();
+
+if (kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id)) {
+    redirect(
+        new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]),
+        get_string('attemptalreadysubmitted', 'kopfuebung')
+    );
+}
 
 if ($kopfuebung->activitystate) {
     redirect(new moodle_url('/mod/kopfuebung/attempt.php', ['id' => $cm->id]));

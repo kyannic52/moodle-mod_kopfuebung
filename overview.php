@@ -556,6 +556,20 @@ if (!$activities) {
                 ]),
                 'kopfuebung-comparison'
             );
+            if (!empty($matrix[$activity->id]['finished']) &&
+                    ($canselectparticipant || !$activity->activitystate)) {
+                $content = html_writer::link(
+                    new moodle_url('/mod/kopfuebung/review.php', [
+                        'id' => $activity->cmid,
+                        'userid' => $targetuser->id,
+                    ], 'question-' . $position),
+                    $content,
+                    [
+                        'class' => 'kopfuebung-review-link',
+                        'title' => get_string('reviewquestion', 'kopfuebung', $position),
+                    ]
+                );
+            }
             $content .= $renderdetailslink($activity, $position);
             $cell = new html_table_cell($content);
             $cell->attributes['class'] = 'kopfuebung-result-cell kopfuebung-result-' . $state;
