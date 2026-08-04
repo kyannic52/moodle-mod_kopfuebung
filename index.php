@@ -22,13 +22,19 @@ if (!$instances) {
 }
 
 $table = new html_table();
-$table->head = [get_string('name'), get_string('timelimit', 'kopfuebung')];
+$table->head = [
+    get_string('name'),
+    get_string('activitytype', 'kopfuebung'),
+    get_string('timelimit', 'kopfuebung'),
+];
 
 foreach ($instances as $instance) {
     $url = new moodle_url('/mod/kopfuebung/view.php', ['id' => $instance->coursemodule]);
+    $isoverview = ($instance->activitytype ?? 'exercise') === 'overview';
     $table->data[] = [
         html_writer::link($url, format_string($instance->name)),
-        format_time($instance->timelimit),
+        get_string($isoverview ? 'overviewactivity' : 'exerciseactivity', 'kopfuebung'),
+        $isoverview ? get_string('notapplicable', 'moodle') : format_time($instance->timelimit),
     ];
 }
 

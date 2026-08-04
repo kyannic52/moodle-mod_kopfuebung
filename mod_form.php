@@ -17,6 +17,16 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
 
         $this->standard_intro_elements();
 
+        $mform->addElement('select', 'activitytype', get_string('activitytype', 'kopfuebung'), [
+            'exercise' => get_string('exerciseactivity', 'kopfuebung'),
+            'overview' => get_string('overviewactivity', 'kopfuebung'),
+        ]);
+        $mform->setDefault('activitytype', 'exercise');
+        $mform->addHelpButton('activitytype', 'activitytype', 'kopfuebung');
+        if ($this->_instance) {
+            $mform->freeze('activitytype');
+        }
+
         $mform->addElement('duration', 'timelimit', get_string('timelimit', 'kopfuebung'), ['optional' => false]);
         $mform->setDefault('timelimit', 300);
         $mform->addHelpButton('timelimit', 'timelimit', 'kopfuebung');
@@ -30,13 +40,17 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
         $mform->setDefault('questioncount', 10);
         $mform->addHelpButton('questioncount', 'questioncount', 'kopfuebung');
 
+        $mform->hideIf('timelimit', 'activitytype', 'eq', 'overview');
+        $mform->hideIf('questioncount', 'activitytype', 'eq', 'overview');
+
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
     }
 
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
-        if (!in_array((int) ($data['questioncount'] ?? 0), [8, 9, 10], true)) {
+        if (($data['activitytype'] ?? 'exercise') !== 'overview' &&
+                !in_array((int) ($data['questioncount'] ?? 0), [8, 9, 10], true)) {
             $errors['questioncount'] = get_string('invalidquestioncount', 'kopfuebung');
         }
         return $errors;

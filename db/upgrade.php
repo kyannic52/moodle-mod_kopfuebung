@@ -143,5 +143,16 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080301, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080401) {
+        $table = new xmldb_table('kopfuebung');
+        $field = new xmldb_field(
+            'activitytype', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'exercise', 'name'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026080401, 'kopfuebung');
+    }
+
     return true;
 }

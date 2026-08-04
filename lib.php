@@ -20,6 +20,7 @@ function kopfuebung_add_instance($data, $mform = null) {
     $data->timemodified = $data->timecreated;
     $data->activitystate = 0;
     $data->timestarted = null;
+    $data->activitytype = ($data->activitytype ?? '') === 'overview' ? 'overview' : 'exercise';
     $data->questioncount = in_array((int) $data->questioncount, [8, 9, 10], true)
         ? (int) $data->questioncount
         : 10;
@@ -32,6 +33,7 @@ function kopfuebung_update_instance($data, $mform = null) {
 
     $data->id = $data->instance;
     $data->timemodified = time();
+    $data->activitytype = ($data->activitytype ?? '') === 'overview' ? 'overview' : 'exercise';
     $data->questioncount = in_array((int) $data->questioncount, [8, 9, 10], true)
         ? (int) $data->questioncount
         : 10;

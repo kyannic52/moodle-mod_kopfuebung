@@ -242,10 +242,10 @@ function kopfuebung_get_course_activities(stdClass $course): array {
         $activity = $DB->get_record(
             'kopfuebung',
             ['id' => $cm->instance],
-            'id, name, activitystate, timestarted, timelimit',
+            'id, name, activitytype, activitystate, timestarted, timelimit',
             IGNORE_MISSING
         );
-        if (!$activity) {
+        if (!$activity || $activity->activitytype === 'overview') {
             continue;
         }
         $activity->cmid = $cm->id;
@@ -287,6 +287,50 @@ function kopfuebung_get_course_participants(stdClass $course, array $activities)
         }
     }
     return $participants;
+}
+
+/**
+ * Send a Moodle notification about feedback in the course overview.
+ *
+ * @param stdClass $course
+ * @param stdClass $from
+ * @param stdClass $to
+ * @param int $conversationuserid User id of the personal conversation, or 0 for course feedback.
+ * @param bool $isreply Whether the notification concerns a student's reply.
+ */
+function kopfuebung_send_feedback_notification(
+    stdClass $course,
+    stdClass $from,
+    stdClass $to,
+    int $conversationuserid,
+    bool $isreply = false
+): void {
+    $stringdata = (object) [
+        'author' => fullname($from),
+        'course' => format_string($course->fullname),
+    ];
+    $subjectkey = $isreply ? 'feedbackreplynotificationsubject' : 'feedbacknotificationsubject';
+    $bodykey = $isreply ? 'feedbackreplynotificationbody' : 'feedbacknotificationbody';
+    $urlparams = ['id' => $course->id];
+    if ($conversationuserid) {
+        $urlparams['userid'] = $conversationuserid;
+    }
+
+    $notification = new \core\message\message();
+    $notification->component = 'mod_kopfuebung';
+    $notification->name = 'feedback';
+    $notification->userfrom = $from->id;
+    $notification->userto = $to->id;
+    $notification->subject = get_string($subjectkey, 'kopfuebung', $stringdata);
+    $notification->fullmessage = get_string($bodykey, 'kopfuebung', $stringdata);
+    $notification->fullmessageformat = FORMAT_PLAIN;
+    $notification->fullmessagehtml = format_text($notification->fullmessage, FORMAT_PLAIN);
+    $notification->smallmessage = $notification->subject;
+    $notification->notification = 1;
+    $notification->contexturl = (new moodle_url('/mod/kopfuebung/overview.php', $urlparams))->out(false);
+    $notification->contexturlname = get_string('viewfeedbackconversation', 'kopfuebung');
+
+    message_send($notification);
 }
 
 /**

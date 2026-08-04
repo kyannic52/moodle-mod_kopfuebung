@@ -14,6 +14,11 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:view', $context);
 
+if (($kopfuebung->activitytype ?? 'exercise') === 'overview') {
+    require_capability('mod/kopfuebung:viewoverview', context_course::instance($course->id));
+    redirect(new moodle_url('/mod/kopfuebung/overview.php', ['id' => $course->id]));
+}
+
 $canattempt = has_capability('mod/kopfuebung:attempt', $context);
 $canstart = has_capability('mod/kopfuebung:startactivity', $context);
 $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [

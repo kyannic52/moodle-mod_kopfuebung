@@ -66,6 +66,33 @@ if ($feedbackdata = $feedbackform->get_data()) {
 
     $message = $feedbackdata->message_editor;
     $now = time();
+    $isstudentreply = $feedbacktargetid && (int) $USER->id === $feedbacktargetid;
+    $feedbackteacher = null;
+    if ($isstudentreply) {
+        $previousfeedback = $DB->get_records_select(
+            'kopfuebung_feedback',
+            'courseid = :courseid AND userid = :userid AND authorid <> :authorid',
+            [
+                'courseid' => $course->id,
+                'userid' => $feedbacktargetid,
+                'authorid' => $feedbacktargetid,
+            ],
+            'timecreated DESC, id DESC',
+            'id, authorid',
+            0,
+            1
+        );
+        $previousfeedback = reset($previousfeedback);
+        if ($previousfeedback) {
+            $feedbackteacher = $DB->get_record(
+                'user',
+                ['id' => $previousfeedback->authorid, 'deleted' => 0],
+                '*',
+                IGNORE_MISSING
+            );
+        }
+    }
+
     $DB->insert_record('kopfuebung_feedback', (object) [
         'courseid' => $course->id,
         'userid' => $feedbacktargetid,
@@ -75,6 +102,24 @@ if ($feedbackdata = $feedbackform->get_data()) {
         'timecreated' => $now,
         'timemodified' => $now,
     ]);
+
+    if ($isstudentreply && $feedbackteacher) {
+        kopfuebung_send_feedback_notification(
+            $course,
+            $USER,
+            $feedbackteacher,
+            $feedbacktargetid,
+            true
+        );
+    } else if (!$isstudentreply && $feedbacktargetid) {
+        kopfuebung_send_feedback_notification($course, $USER, $targetuser, $feedbacktargetid);
+    } else if (!$isstudentreply) {
+        foreach ($participants as $participant) {
+            if ((int) $participant->id !== (int) $USER->id) {
+                kopfuebung_send_feedback_notification($course, $USER, $participant, 0);
+            }
+        }
+    }
     redirect($PAGE->url, get_string('feedbacksent', 'kopfuebung'), null,
         \core\output\notification::NOTIFY_SUCCESS);
 }
