@@ -417,6 +417,119 @@ function kopfuebung_get_course_label_grids(int $courseid): array {
 }
 
 /**
+ * Split the ordered Kopfuebung activities into their diagnostic label grids.
+ *
+ * @param stdClass $course
+ * @param array|null $activities
+ * @param array|null $labelgrids
+ * @return array
+ */
+function kopfuebung_get_course_grid_sections(
+    stdClass $course,
+    ?array $activities = null,
+    ?array $labelgrids = null
+): array {
+    $activities = $activities ?? kopfuebung_get_course_activities($course);
+    $labelgrids = $labelgrids ?? kopfuebung_get_course_label_grids($course->id);
+    $sections = [];
+    $current = (object) [
+        'gridid' => 0,
+        'number' => 1,
+        'labels' => kopfuebung_get_course_labels($course->id),
+        'activities' => [],
+    ];
+
+    foreach ($activities as $activity) {
+        if (isset($labelgrids[$activity->cmid]) && $current->activities) {
+            $sections[] = $current;
+            $grid = $labelgrids[$activity->cmid];
+            $current = (object) [
+                'gridid' => (int) $grid->id,
+                'number' => count($sections) + 1,
+                'labels' => $grid->labels,
+                'activities' => [],
+            ];
+        }
+        $current->activities[] = $activity;
+    }
+    if ($current->activities) {
+        $sections[] = $current;
+    }
+
+    return $sections;
+}
+
+/**
+ * Return the additional offers in a course keyed by grid id and row position.
+ *
+ * @param int $courseid
+ * @return array
+ */
+function kopfuebung_get_course_additional_offers(int $courseid): array {
+    global $DB;
+
+    $offers = [];
+    foreach ($DB->get_records('kopfuebung_offers', ['courseid' => $courseid]) as $offer) {
+        $offers[(int) $offer->gridid][(int) $offer->position] = $offer;
+    }
+    return $offers;
+}
+
+/**
+ * Count non-correct answers for one user, row and completed grid section.
+ *
+ * @param stdClass $section
+ * @param array $usermatrix
+ * @param int $position
+ * @return int
+ */
+function kopfuebung_count_grid_incorrect(stdClass $section, array $usermatrix, int $position): int {
+    $count = 0;
+    foreach ($section->activities as $activity) {
+        // Do not reveal outcomes from a currently running activity.
+        if ($activity->activitystate) {
+            continue;
+        }
+        $state = $usermatrix[$activity->id]['cells'][$position] ?? 'notattempted';
+        if (in_array($state, ['partiallycorrect', 'incorrect'], true)) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+/**
+ * Resolve an additional-offer target to a URL and display name.
+ *
+ * @param stdClass $course
+ * @param string $type
+ * @param string|null $target
+ * @return array|null
+ */
+function kopfuebung_resolve_offer_target(stdClass $course, string $type, ?string $target): ?array {
+    if ($type === 'url' && $target && preg_match('#^https?://#i', $target)) {
+        return ['url' => new moodle_url($target), 'name' => $target];
+    }
+    if ($type !== 'activity' || !$target) {
+        return null;
+    }
+
+    try {
+        $cm = get_fast_modinfo($course)->get_cm((int) $target);
+    } catch (moodle_exception $exception) {
+        return null;
+    }
+    if ((int) $cm->course !== (int) $course->id || $cm->deletioninprogress) {
+        return null;
+    }
+
+    return [
+        'url' => new moodle_url('/mod/' . $cm->modname . '/view.php', ['id' => $cm->id]),
+        'name' => $cm->get_formatted_name(),
+    ];
+}
+
+/**
  * Create a label grid starting at a specific Kopfuebung course module.
  *
  * @param int $courseid

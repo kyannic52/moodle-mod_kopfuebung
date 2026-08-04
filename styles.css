@@ -125,6 +125,54 @@
     margin-bottom: .5rem;
 }
 
+.kopfuebung-additional-offer-cell {
+    border-right: 2px solid #b8c2cc;
+    min-width: 4rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.kopfuebung-additional-offer-link {
+    display: inline-flex;
+    text-decoration: none;
+}
+
+.kopfuebung-additional-offer-teacher-icon {
+    align-items: center;
+    border: 2px solid #0f6cbf;
+    border-radius: 50%;
+    color: #0f6cbf;
+    display: inline-flex;
+    font-size: 1rem;
+    font-weight: bold;
+    height: 1.75rem;
+    justify-content: center;
+    line-height: 1;
+    width: 1.75rem;
+}
+
+.kopfuebung-additional-offer-student-icon {
+    align-items: center;
+    background: #ffc107;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    color: #4a3b00;
+    display: inline-flex;
+    font-size: 1rem;
+    font-weight: bold;
+    height: 1.8rem;
+    justify-content: center;
+    line-height: 1;
+    padding-top: .4rem;
+    width: 2rem;
+}
+
+.kopfuebung-additional-hint {
+    background: #f8f9fa;
+    border-left: .35rem solid #ffc107;
+    margin: 1rem 0;
+    padding: 1rem;
+}
+
 @media (max-width: 767.98px) {
     #kopfuebung-timer.kopfuebung-timer-fixed {
         top: 3.75rem;

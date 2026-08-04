@@ -154,5 +154,42 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080401, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080403) {
+        $offerstable = new xmldb_table('kopfuebung_offers');
+        $offerstable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $offerstable->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $offerstable->add_field('gridid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $offerstable->add_field('position', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0');
+        $offerstable->add_field('threshold', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '1');
+        $offerstable->add_field('hint', XMLDB_TYPE_TEXT, null, null, null);
+        $offerstable->add_field('hintformat', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, null, '0');
+        $offerstable->add_field('explanationtype', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, 'none');
+        $offerstable->add_field('explanationtarget', XMLDB_TYPE_TEXT, null, null, null);
+        $offerstable->add_field('practicetype', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, 'none');
+        $offerstable->add_field('practicetarget', XMLDB_TYPE_TEXT, null, null, null);
+        $offerstable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $offerstable->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $offerstable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $offerstable->add_key('coursefk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        $offerstable->add_index('course_grid_position', XMLDB_INDEX_UNIQUE, ['courseid', 'gridid', 'position']);
+        if (!$dbman->table_exists($offerstable)) {
+            $dbman->create_table($offerstable);
+        }
+
+        $userstable = new xmldb_table('kopfuebung_offer_users');
+        $userstable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $userstable->add_field('offerid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $userstable->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $userstable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $userstable->add_key('offerfk', XMLDB_KEY_FOREIGN, ['offerid'], 'kopfuebung_offers', ['id']);
+        $userstable->add_key('userfk', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+        $userstable->add_index('offer_user', XMLDB_INDEX_UNIQUE, ['offerid', 'userid']);
+        if (!$dbman->table_exists($userstable)) {
+            $dbman->create_table($userstable);
+        }
+
+        upgrade_mod_savepoint(true, 2026080403, 'kopfuebung');
+    }
+
     return true;
 }

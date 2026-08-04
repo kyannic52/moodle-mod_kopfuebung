@@ -16,6 +16,7 @@ require_capability('mod/kopfuebung:viewoverview', $context);
 
 $canmanage = has_capability('mod/kopfuebung:manageoverview', $context);
 $canfeedback = has_capability('mod/kopfuebung:givefeedback', $context);
+$canmanageoffers = has_capability('mod/kopfuebung:manageadditionaloffers', $context);
 $canselectparticipant = $canmanage || $canfeedback;
 $showallusers = $canselectparticipant && ($userid === 0 || $userid === -1);
 $targetuser = $USER;
@@ -41,6 +42,14 @@ $PAGE->set_context($context);
 $activities = kopfuebung_get_course_activities($course);
 $defaultlabels = kopfuebung_get_course_labels($course->id);
 $labelgrids = kopfuebung_get_course_label_grids($course->id);
+$gridsections = kopfuebung_get_course_grid_sections($course, $activities, $labelgrids);
+$gridsectionsbyendcmid = [];
+foreach ($gridsections as $gridsection) {
+    $sectionactivities = $gridsection->activities;
+    $lastactivity = end($sectionactivities);
+    $gridsectionsbyendcmid[(int) $lastactivity->cmid] = $gridsection;
+}
+$additionaloffers = kopfuebung_get_course_additional_offers($course->id);
 $participants = kopfuebung_get_course_participants($course, $activities);
 
 if (!$showallusers && !isset($participants[$targetuser->id])) {
@@ -245,6 +254,13 @@ if (!$activities) {
             ));
         }
         $table->head[] = $activityheading;
+        if (isset($gridsectionsbyendcmid[$activity->cmid])) {
+            $table->head[] = get_string(
+                'additionaloffercolumn',
+                'kopfuebung',
+                $gridsectionsbyendcmid[$activity->cmid]->number
+            );
+        }
     }
 
     $renderlabel = static function(int $gridid, array $gridlabels, int $position) use ($canmanage): string {
@@ -310,6 +326,88 @@ if (!$activities) {
         );
     };
 
+    $renderadditionaloffer = static function(stdClass $section, int $position) use (
+        $additionaloffers,
+        $canmanageoffers,
+        $course,
+        $context,
+        $matrix,
+        $showallusers,
+        $targetuser,
+        $DB
+    ): html_table_cell {
+        $cell = new html_table_cell('');
+        $cell->attributes['class'] = 'kopfuebung-additional-offer-cell';
+        $url = new moodle_url('/mod/kopfuebung/additionaloffer.php', [
+            'id' => $course->id,
+            'gridid' => $section->gridid,
+            'position' => $position,
+        ]);
+        $label = trim($section->labels[$position] ?? '');
+        if ($label === '') {
+            $label = get_string('unlabelled', 'kopfuebung');
+        }
+
+        if ($canmanageoffers) {
+            $cell->text = html_writer::link(
+                $url,
+                html_writer::span('↗', 'kopfuebung-additional-offer-teacher-icon', ['aria-hidden' => 'true']),
+                [
+                    'class' => 'kopfuebung-additional-offer-link',
+                    'title' => get_string('configureadditionaloffer', 'kopfuebung', $label),
+                    'aria-label' => get_string('configureadditionaloffer', 'kopfuebung', $label),
+                ]
+            );
+            return $cell;
+        }
+
+        if ($showallusers || empty($additionaloffers[$section->gridid][$position])) {
+            return $cell;
+        }
+        $offer = $additionaloffers[$section->gridid][$position];
+        $incorrectcount = kopfuebung_count_grid_incorrect($section, $matrix, $position);
+        $isindividual = $DB->record_exists('kopfuebung_offer_users', [
+            'offerid' => $offer->id,
+            'userid' => $targetuser->id,
+        ]);
+        if (!$isindividual && $incorrectcount < (int) $offer->threshold) {
+            return $cell;
+        }
+
+        $tooltip = get_string('incorrectcategorycount', 'kopfuebung', [
+            'category' => $label,
+            'count' => $incorrectcount,
+        ]);
+        if (trim((string) $offer->hint) !== '') {
+            $tooltip .= "\n\n" . content_to_text(
+                format_text($offer->hint, $offer->hintformat, ['context' => $context]),
+                FORMAT_HTML
+            );
+        }
+        $explanation = kopfuebung_resolve_offer_target(
+            $course, $offer->explanationtype, $offer->explanationtarget
+        );
+        if ($explanation) {
+            $tooltip .= "\n\n" . get_string('explanationlinkintro', 'kopfuebung') . ' ' .
+                $explanation['name'] . ' — ' . $explanation['url']->out(false);
+        }
+        $practice = kopfuebung_resolve_offer_target($course, $offer->practicetype, $offer->practicetarget);
+        if ($practice) {
+            $tooltip .= "\n\n" . get_string('practicelinkintro', 'kopfuebung') . ' ' .
+                $practice['name'] . ' — ' . $practice['url']->out(false);
+        }
+        $cell->text = html_writer::link(
+            $url,
+            html_writer::span('!', 'kopfuebung-additional-offer-student-icon', ['aria-hidden' => 'true']),
+            [
+                'class' => 'kopfuebung-additional-offer-link',
+                'title' => $tooltip,
+                'aria-label' => get_string('viewadditionaloffer', 'kopfuebung', $label),
+            ]
+        );
+        return $cell;
+    };
+
     for ($position = 1; $position <= 10; $position++) {
         $row = [$renderlabel(0, $defaultlabels, $position)];
         foreach ($activities as $activity) {
@@ -323,6 +421,9 @@ if (!$activities) {
                     'text-muted',
                     ['title' => get_string('resultsavailableafteractivity', 'kopfuebung')]
                 );
+                if (isset($gridsectionsbyendcmid[$activity->cmid])) {
+                    $row[] = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                }
                 continue;
             }
 
@@ -336,6 +437,9 @@ if (!$activities) {
                     'answered' => $cell['answered'],
                 ]);
                 $row[] = $content . $renderdetailslink($activity, $position);
+                if (isset($gridsectionsbyendcmid[$activity->cmid])) {
+                    $row[] = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                }
                 continue;
             }
 
@@ -367,6 +471,9 @@ if (!$activities) {
             $cell = new html_table_cell($content);
             $cell->attributes['class'] = 'kopfuebung-result-cell kopfuebung-result-' . $state;
             $row[] = $cell;
+            if (isset($gridsectionsbyendcmid[$activity->cmid])) {
+                $row[] = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+            }
         }
         $table->data[] = $row;
     }
@@ -394,6 +501,9 @@ if (!$activities) {
             } else {
                 $sumrow[] = get_string('notattempted', 'kopfuebung');
             }
+        }
+        if (isset($gridsectionsbyendcmid[$activity->cmid])) {
+            $sumrow[] = '';
         }
     }
     $table->data[] = $sumrow;

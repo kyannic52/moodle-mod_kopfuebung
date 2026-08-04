@@ -47,6 +47,22 @@ class provider implements \core_privacy\local\metadata\provider {
             'privacy:metadata:kopfuebung_feedback'
         );
 
+        $collection->add_database_table(
+            'kopfuebung_offers',
+            [
+                'hint' => 'privacy:metadata:kopfuebung_offers:hint',
+                'explanationtarget' => 'privacy:metadata:kopfuebung_offers:explanationtarget',
+                'practicetarget' => 'privacy:metadata:kopfuebung_offers:practicetarget',
+            ],
+            'privacy:metadata:kopfuebung_offers'
+        );
+
+        $collection->add_database_table(
+            'kopfuebung_offer_users',
+            ['userid' => 'privacy:metadata:kopfuebung_offer_users:userid'],
+            'privacy:metadata:kopfuebung_offer_users'
+        );
+
         return $collection;
     }
 }

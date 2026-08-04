@@ -62,6 +62,20 @@ function kopfuebung_delete_instance($id) {
     if ($cm) {
         $labelgrid = $DB->get_record('kopfuebung_labelgrids', ['startcmid' => $cm->id]);
         if ($labelgrid) {
+            $offerids = $DB->get_fieldset_select(
+                'kopfuebung_offers',
+                'id',
+                'courseid = ? AND gridid = ?',
+                [$cm->course, $labelgrid->id]
+            );
+            if ($offerids) {
+                list($offersql, $offerparams) = $DB->get_in_or_equal($offerids, SQL_PARAMS_NAMED, 'offer');
+                $DB->delete_records_select('kopfuebung_offer_users', "offerid $offersql", $offerparams);
+            }
+            $DB->delete_records('kopfuebung_offers', [
+                'courseid' => $cm->course,
+                'gridid' => $labelgrid->id,
+            ]);
             $DB->delete_records('kopfuebung_labels', ['gridid' => $labelgrid->id]);
             $DB->delete_records('kopfuebung_labelgrids', ['id' => $labelgrid->id]);
         }

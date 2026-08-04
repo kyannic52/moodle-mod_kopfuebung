@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/kopfuebung/db" VERSION="2026080401" COMMENT="XMLDB file for Moodle mod_kopfuebung"
+<XMLDB PATH="mod/kopfuebung/db" VERSION="2026080403" COMMENT="XMLDB file for Moodle mod_kopfuebung"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd">
   <TABLES>
@@ -152,6 +152,47 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="course_recipient" UNIQUE="false" FIELDS="courseid, userid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="kopfuebung_offers" COMMENT="Additional learning offers for a row in a diagnostic grid">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="gridid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="position" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="threshold" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
+        <FIELD NAME="hint" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="hintformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="explanationtype" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="none" SEQUENCE="false"/>
+        <FIELD NAME="explanationtarget" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="practicetype" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="none" SEQUENCE="false"/>
+        <FIELD NAME="practicetarget" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="coursefk" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="course_grid_position" UNIQUE="true" FIELDS="courseid, gridid, position"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="kopfuebung_offer_users" COMMENT="Users who always receive a specific additional learning offer">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="offerid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="offerfk" TYPE="foreign" FIELDS="offerid" REFTABLE="kopfuebung_offers" REFFIELDS="id"/>
+        <KEY NAME="userfk" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="offer_user" UNIQUE="true" FIELDS="offerid, userid"/>
       </INDEXES>
     </TABLE>
   </TABLES>
