@@ -71,6 +71,7 @@ function kopfuebung_delete_instance($id) {
             if ($offerids) {
                 list($offersql, $offerparams) = $DB->get_in_or_equal($offerids, SQL_PARAMS_NAMED, 'offer');
                 $DB->delete_records_select('kopfuebung_offer_users', "offerid $offersql", $offerparams);
+                $DB->delete_records_select('kopfuebung_offer_links', "offerid $offersql", $offerparams);
             }
             $DB->delete_records('kopfuebung_offers', [
                 'courseid' => $cm->course,

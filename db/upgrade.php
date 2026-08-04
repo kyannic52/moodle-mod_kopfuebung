@@ -191,5 +191,40 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080403, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080405) {
+        $table = new xmldb_table('kopfuebung_offer_links');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('offerid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('linkcategory', XMLDB_TYPE_CHAR, '15', null, XMLDB_NOTNULL, null, 'explanation');
+        $table->add_field('linktype', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, 'activity');
+        $table->add_field('target', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL);
+        $table->add_field('sortorder', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('offerfk', XMLDB_KEY_FOREIGN, ['offerid'], 'kopfuebung_offers', ['id']);
+        $table->add_index('offer_category_sort', XMLDB_INDEX_NOTUNIQUE,
+            ['offerid', 'linkcategory', 'sortorder']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+
+            foreach ($DB->get_records('kopfuebung_offers') as $offer) {
+                foreach (['explanation', 'practice'] as $category) {
+                    $typefield = $category . 'type';
+                    $targetfield = $category . 'target';
+                    if ($offer->{$typefield} !== 'none' && !empty($offer->{$targetfield})) {
+                        $DB->insert_record('kopfuebung_offer_links', (object) [
+                            'offerid' => $offer->id,
+                            'linkcategory' => $category,
+                            'linktype' => $offer->{$typefield},
+                            'target' => $offer->{$targetfield},
+                            'sortorder' => 1,
+                        ]);
+                    }
+                }
+            }
+        }
+
+        upgrade_mod_savepoint(true, 2026080405, 'kopfuebung');
+    }
+
     return true;
 }

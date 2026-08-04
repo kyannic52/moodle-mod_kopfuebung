@@ -331,10 +331,11 @@ if (!$activities) {
         $canmanageoffers,
         $course,
         $context,
+        $groupmatrix,
         $matrix,
+        $participants,
         $showallusers,
-        $targetuser,
-        $DB
+        $targetuser
     ): html_table_cell {
         $cell = new html_table_cell('');
         $cell->attributes['class'] = 'kopfuebung-additional-offer-cell';
@@ -349,15 +350,43 @@ if (!$activities) {
         }
 
         if ($canmanageoffers) {
-            $cell->text = html_writer::link(
+            $offer = $additionaloffers[$section->gridid][$position] ?? null;
+            $iconclass = 'kopfuebung-additional-offer-teacher-icon';
+            if ($offer) {
+                $iconclass .= ' kopfuebung-additional-offer-configured';
+            }
+            $content = html_writer::link(
                 $url,
-                html_writer::span('↗', 'kopfuebung-additional-offer-teacher-icon', ['aria-hidden' => 'true']),
+                html_writer::span('↗', $iconclass, ['aria-hidden' => 'true']),
                 [
                     'class' => 'kopfuebung-additional-offer-link',
                     'title' => get_string('configureadditionaloffer', 'kopfuebung', $label),
                     'aria-label' => get_string('configureadditionaloffer', 'kopfuebung', $label),
                 ]
             );
+            if ($offer) {
+                $incorrectbyuser = array_fill_keys(array_keys($participants), 0);
+                foreach ($section->activities as $activity) {
+                    if ($activity->activitystate) {
+                        continue;
+                    }
+                    foreach ($groupmatrix[$activity->id]['cells'][$position]['incorrectuserids'] as $userid) {
+                        if (isset($incorrectbyuser[$userid])) {
+                            $incorrectbyuser[$userid]++;
+                        }
+                    }
+                }
+                $conditioncount = count(array_filter($incorrectbyuser, static function(int $count) use ($offer): bool {
+                    return $count >= (int) $offer->threshold;
+                }));
+                $individualcount = count(array_intersect(array_keys($participants), $offer->userids));
+                $content .= html_writer::span(get_string('additionaloffercounts', 'kopfuebung', (object) [
+                    'condition' => $conditioncount,
+                    'individual' => $individualcount,
+                    'total' => count($participants),
+                ]), 'kopfuebung-additional-offer-counts');
+            }
+            $cell->text = $content;
             return $cell;
         }
 
@@ -366,10 +395,7 @@ if (!$activities) {
         }
         $offer = $additionaloffers[$section->gridid][$position];
         $incorrectcount = kopfuebung_count_grid_incorrect($section, $matrix, $position);
-        $isindividual = $DB->record_exists('kopfuebung_offer_users', [
-            'offerid' => $offer->id,
-            'userid' => $targetuser->id,
-        ]);
+        $isindividual = in_array((int) $targetuser->id, $offer->userids, true);
         if (!$isindividual && $incorrectcount < (int) $offer->threshold) {
             return $cell;
         }
@@ -384,17 +410,19 @@ if (!$activities) {
                 FORMAT_HTML
             );
         }
-        $explanation = kopfuebung_resolve_offer_target(
-            $course, $offer->explanationtype, $offer->explanationtarget
-        );
-        if ($explanation) {
-            $tooltip .= "\n\n" . get_string('explanationlinkintro', 'kopfuebung') . ' ' .
-                $explanation['name'] . ' — ' . $explanation['url']->out(false);
+        $explanations = kopfuebung_resolve_offer_links($course, $offer, 'explanation');
+        if ($explanations) {
+            $tooltip .= "\n\n" . get_string('explanationlinkintro', 'kopfuebung');
+            foreach ($explanations as $explanation) {
+                $tooltip .= "\n" . $explanation['name'] . ' — ' . $explanation['url']->out(false);
+            }
         }
-        $practice = kopfuebung_resolve_offer_target($course, $offer->practicetype, $offer->practicetarget);
-        if ($practice) {
-            $tooltip .= "\n\n" . get_string('practicelinkintro', 'kopfuebung') . ' ' .
-                $practice['name'] . ' — ' . $practice['url']->out(false);
+        $practiceitems = kopfuebung_resolve_offer_links($course, $offer, 'practice');
+        if ($practiceitems) {
+            $tooltip .= "\n\n" . get_string('practicelinkintro', 'kopfuebung');
+            foreach ($practiceitems as $practice) {
+                $tooltip .= "\n" . $practice['name'] . ' — ' . $practice['url']->out(false);
+            }
         }
         $cell->text = html_writer::link(
             $url,

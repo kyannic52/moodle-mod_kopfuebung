@@ -469,8 +469,27 @@ function kopfuebung_get_course_additional_offers(int $courseid): array {
     global $DB;
 
     $offers = [];
-    foreach ($DB->get_records('kopfuebung_offers', ['courseid' => $courseid]) as $offer) {
+    $records = $DB->get_records('kopfuebung_offers', ['courseid' => $courseid]);
+    if (!$records) {
+        return $offers;
+    }
+    foreach ($records as $offer) {
+        $offer->links = ['explanation' => [], 'practice' => []];
+        $offer->userids = [];
         $offers[(int) $offer->gridid][(int) $offer->position] = $offer;
+    }
+    foreach ($DB->get_records_list(
+        'kopfuebung_offer_links',
+        'offerid',
+        array_keys($records),
+        'linkcategory ASC, sortorder ASC, id ASC'
+    ) as $link) {
+        if (isset($records[$link->offerid]->links[$link->linkcategory])) {
+            $records[$link->offerid]->links[$link->linkcategory][] = $link;
+        }
+    }
+    foreach ($DB->get_records_list('kopfuebung_offer_users', 'offerid', array_keys($records)) as $assignment) {
+        $records[$assignment->offerid]->userids[] = (int) $assignment->userid;
     }
     return $offers;
 }
@@ -527,6 +546,25 @@ function kopfuebung_resolve_offer_target(stdClass $course, string $type, ?string
         'url' => new moodle_url('/mod/' . $cm->modname . '/view.php', ['id' => $cm->id]),
         'name' => $cm->get_formatted_name(),
     ];
+}
+
+/**
+ * Resolve every target in one category of an additional offer.
+ *
+ * @param stdClass $course
+ * @param stdClass $offer
+ * @param string $category
+ * @return array
+ */
+function kopfuebung_resolve_offer_links(stdClass $course, stdClass $offer, string $category): array {
+    $targets = [];
+    foreach ($offer->links[$category] ?? [] as $link) {
+        $target = kopfuebung_resolve_offer_target($course, $link->linktype, $link->target);
+        if ($target) {
+            $targets[] = $target;
+        }
+    }
+    return $targets;
 }
 
 /**

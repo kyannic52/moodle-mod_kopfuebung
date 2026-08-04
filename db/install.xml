@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/kopfuebung/db" VERSION="2026080403" COMMENT="XMLDB file for Moodle mod_kopfuebung"
+<XMLDB PATH="mod/kopfuebung/db" VERSION="2026080405" COMMENT="XMLDB file for Moodle mod_kopfuebung"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd">
   <TABLES>
@@ -193,6 +193,24 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="offer_user" UNIQUE="true" FIELDS="offerid, userid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="kopfuebung_offer_links" COMMENT="Activity and external URL targets belonging to an additional offer">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="offerid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="linkcategory" TYPE="char" LENGTH="15" NOTNULL="true" DEFAULT="explanation" SEQUENCE="false"/>
+        <FIELD NAME="linktype" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="activity" SEQUENCE="false"/>
+        <FIELD NAME="target" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="offerfk" TYPE="foreign" FIELDS="offerid" REFTABLE="kopfuebung_offers" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="offer_category_sort" UNIQUE="false" FIELDS="offerid, linkcategory, sortorder"/>
       </INDEXES>
     </TABLE>
   </TABLES>

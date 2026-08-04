@@ -59,7 +59,15 @@ class additional_offer_form extends \moodleform {
             $mform->addElement('advcheckbox', 'deleteoffer', get_string('deleteadditionaloffer', 'kopfuebung'));
         }
 
-        $this->add_action_buttons(true, get_string('saveadditionaloffer', 'kopfuebung'));
+        $buttons = [];
+        $buttons[] = $mform->createElement('submit', 'saveoffer', get_string('saveadditionaloffer', 'kopfuebung'));
+        $buttons[] = $mform->createElement(
+            'submit',
+            'saveandreturn',
+            get_string('saveadditionalofferandreturn', 'kopfuebung')
+        );
+        $buttons[] = $mform->createElement('cancel');
+        $mform->addGroup($buttons, 'buttonar', '', [' '], false);
     }
 
     /**
@@ -72,20 +80,15 @@ class additional_offer_form extends \moodleform {
     private function add_target_fields(string $prefix, string $heading, array $activityoptions): void {
         $mform = $this->_form;
         $mform->addElement('header', $prefix . 'header', $heading);
-        $mform->addElement('select', $prefix . 'type', get_string('linktype', 'kopfuebung'), [
-            'none' => get_string('nolinkselected', 'kopfuebung'),
-            'activity' => get_string('courseactivity', 'kopfuebung'),
-            'url' => get_string('externalurl', 'kopfuebung'),
+        $mform->addElement('autocomplete', $prefix . 'cmids', get_string('courseactivities', 'kopfuebung'),
+            $activityoptions, ['multiple' => true]);
+        $mform->setType($prefix . 'cmids', PARAM_INT);
+        $mform->addElement('textarea', $prefix . 'urls', get_string('externalurls', 'kopfuebung'), [
+            'rows' => 5,
+            'cols' => 64,
         ]);
-        $mform->setDefault($prefix . 'type', 'none');
-
-        $mform->addElement('select', $prefix . 'cmid', get_string('courseactivity', 'kopfuebung'),
-            [0 => get_string('choose')] + $activityoptions);
-        $mform->hideIf($prefix . 'cmid', $prefix . 'type', 'neq', 'activity');
-
-        $mform->addElement('text', $prefix . 'url', get_string('externalurl', 'kopfuebung'), ['size' => 64]);
-        $mform->setType($prefix . 'url', PARAM_RAW_TRIMMED);
-        $mform->hideIf($prefix . 'url', $prefix . 'type', 'neq', 'url');
+        $mform->setType($prefix . 'urls', PARAM_RAW_TRIMMED);
+        $mform->addHelpButton($prefix . 'urls', 'externalurls', 'kopfuebung');
     }
 
     /**
@@ -100,19 +103,19 @@ class additional_offer_form extends \moodleform {
         $activityoptions = $this->_customdata['activityoptions'];
 
         foreach (['explanation', 'practice'] as $prefix) {
-            $type = $data[$prefix . 'type'] ?? 'none';
-            if ($type === 'activity') {
-                $cmid = (int) ($data[$prefix . 'cmid'] ?? 0);
-                if (!$cmid || !isset($activityoptions[$cmid])) {
-                    $errors[$prefix . 'cmid'] = get_string('required');
+            foreach (array_map('intval', $data[$prefix . 'cmids'] ?? []) as $cmid) {
+                if (!isset($activityoptions[$cmid])) {
+                    $errors[$prefix . 'cmids'] = get_string('invalidcoursemodule', 'error');
+                    break;
                 }
-            } else if ($type === 'url') {
-                $url = trim($data[$prefix . 'url'] ?? '');
+            }
+            $urls = preg_split('/\R/', trim($data[$prefix . 'urls'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($urls as $url) {
+                $url = trim($url);
                 if (!preg_match('#^https?://#i', $url) || !filter_var($url, FILTER_VALIDATE_URL)) {
-                    $errors[$prefix . 'url'] = get_string('invalidurl', 'kopfuebung');
+                    $errors[$prefix . 'urls'] = get_string('invalidurl', 'kopfuebung');
+                    break;
                 }
-            } else if ($type !== 'none') {
-                $errors[$prefix . 'type'] = get_string('invalidrequest');
             }
         }
 

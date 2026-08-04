@@ -63,6 +63,12 @@ class provider implements \core_privacy\local\metadata\provider {
             'privacy:metadata:kopfuebung_offer_users'
         );
 
+        $collection->add_database_table(
+            'kopfuebung_offer_links',
+            ['target' => 'privacy:metadata:kopfuebung_offer_links:target'],
+            'privacy:metadata:kopfuebung_offer_links'
+        );
+
         return $collection;
     }
 }

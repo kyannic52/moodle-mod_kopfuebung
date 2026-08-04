@@ -47,11 +47,8 @@ $PAGE->set_title(get_string($canmanage ? 'configureadditionaloffer' : 'additiona
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
-$offer = $DB->get_record('kopfuebung_offers', [
-    'courseid' => $course->id,
-    'gridid' => $gridid,
-    'position' => $position,
-]);
+$courseoffers = kopfuebung_get_course_additional_offers($course->id);
+$offer = $courseoffers[$gridid][$position] ?? null;
 
 if ($canmanage) {
     $activityoptions = [];
@@ -88,19 +85,27 @@ if ($canmanage) {
             'text' => $offer->hint ?? '',
             'format' => $offer->hintformat ?? FORMAT_HTML,
         ],
-        'explanationtype' => $offer->explanationtype ?? 'none',
-        'explanationcmid' => $offer && $offer->explanationtype === 'activity'
-            ? (int) $offer->explanationtarget : 0,
-        'explanationurl' => $offer && $offer->explanationtype === 'url'
-            ? $offer->explanationtarget : '',
-        'practicetype' => $offer->practicetype ?? 'none',
-        'practicecmid' => $offer && $offer->practicetype === 'activity'
-            ? (int) $offer->practicetarget : 0,
-        'practiceurl' => $offer && $offer->practicetype === 'url'
-            ? $offer->practicetarget : '',
-        'userids' => $offer
-            ? $DB->get_fieldset_select('kopfuebung_offer_users', 'userid', 'offerid = ?', [$offer->id])
-            : [],
+        'explanationcmids' => $offer ? array_values(array_map(static function($link): int {
+            return (int) $link->target;
+        }, array_filter($offer->links['explanation'], static function($link): bool {
+            return $link->linktype === 'activity';
+        }))) : [],
+        'explanationurls' => $offer ? implode("\n", array_map(static function($link): string {
+            return $link->target;
+        }, array_filter($offer->links['explanation'], static function($link): bool {
+            return $link->linktype === 'url';
+        }))) : '',
+        'practicecmids' => $offer ? array_values(array_map(static function($link): int {
+            return (int) $link->target;
+        }, array_filter($offer->links['practice'], static function($link): bool {
+            return $link->linktype === 'activity';
+        }))) : [],
+        'practiceurls' => $offer ? implode("\n", array_map(static function($link): string {
+            return $link->target;
+        }, array_filter($offer->links['practice'], static function($link): bool {
+            return $link->linktype === 'url';
+        }))) : '',
+        'userids' => $offer ? $offer->userids : [],
     ];
     $form->set_data($formdata);
 
@@ -111,6 +116,7 @@ if ($canmanage) {
         $transaction = $DB->start_delegated_transaction();
         if (!empty($data->deleteoffer) && $offer) {
             $DB->delete_records('kopfuebung_offer_users', ['offerid' => $offer->id]);
+            $DB->delete_records('kopfuebung_offer_links', ['offerid' => $offer->id]);
             $DB->delete_records('kopfuebung_offers', ['id' => $offer->id]);
             $transaction->allow_commit();
             redirect(new moodle_url('/mod/kopfuebung/overview.php', ['id' => $course->id, 'userid' => -1]),
@@ -118,15 +124,6 @@ if ($canmanage) {
                 \core\output\notification::NOTIFY_SUCCESS);
         }
 
-        $targetvalue = static function(stdClass $data, string $prefix): ?string {
-            if ($data->{$prefix . 'type'} === 'activity') {
-                return (string) $data->{$prefix . 'cmid'};
-            }
-            if ($data->{$prefix . 'type'} === 'url') {
-                return trim($data->{$prefix . 'url'});
-            }
-            return null;
-        };
         $hint = $data->hint_editor;
         $record = (object) [
             'courseid' => $course->id,
@@ -135,10 +132,10 @@ if ($canmanage) {
             'threshold' => max(1, min((int) $data->threshold, count($section->activities))),
             'hint' => $hint['text'],
             'hintformat' => $hint['format'],
-            'explanationtype' => $data->explanationtype,
-            'explanationtarget' => $targetvalue($data, 'explanation'),
-            'practicetype' => $data->practicetype,
-            'practicetarget' => $targetvalue($data, 'practice'),
+            'explanationtype' => 'none',
+            'explanationtarget' => null,
+            'practicetype' => 'none',
+            'practicetarget' => null,
             'timemodified' => time(),
         ];
         if ($offer) {
@@ -146,6 +143,7 @@ if ($canmanage) {
             $DB->update_record('kopfuebung_offers', $record);
             $offerid = (int) $offer->id;
             $DB->delete_records('kopfuebung_offer_users', ['offerid' => $offerid]);
+            $DB->delete_records('kopfuebung_offer_links', ['offerid' => $offerid]);
         } else {
             $record->timecreated = $record->timemodified;
             $offerid = $DB->insert_record('kopfuebung_offers', $record);
@@ -159,7 +157,36 @@ if ($canmanage) {
                 ]);
             }
         }
+        foreach (['explanation', 'practice'] as $category) {
+            $sortorder = 0;
+            foreach (array_unique(array_map('intval', $data->{$category . 'cmids'} ?? [])) as $cmid) {
+                if (isset($activityoptions[$cmid])) {
+                    $DB->insert_record('kopfuebung_offer_links', (object) [
+                        'offerid' => $offerid,
+                        'linkcategory' => $category,
+                        'linktype' => 'activity',
+                        'target' => (string) $cmid,
+                        'sortorder' => ++$sortorder,
+                    ]);
+                }
+            }
+            $urls = preg_split('/\R/', trim($data->{$category . 'urls'} ?? ''), -1, PREG_SPLIT_NO_EMPTY);
+            foreach (array_unique(array_map('trim', $urls)) as $url) {
+                $DB->insert_record('kopfuebung_offer_links', (object) [
+                    'offerid' => $offerid,
+                    'linkcategory' => $category,
+                    'linktype' => 'url',
+                    'target' => $url,
+                    'sortorder' => ++$sortorder,
+                ]);
+            }
+        }
         $transaction->allow_commit();
+        if (!empty($data->saveandreturn)) {
+            redirect(new moodle_url('/mod/kopfuebung/overview.php', ['id' => $course->id, 'userid' => -1]),
+                get_string('additionaloffersaved', 'kopfuebung'), null,
+                \core\output\notification::NOTIFY_SUCCESS);
+        }
         redirect($PAGE->url, get_string('additionaloffersaved', 'kopfuebung'), null,
             \core\output\notification::NOTIFY_SUCCESS);
     }
@@ -181,18 +208,13 @@ if (!isset($participants[$USER->id]) || !$offer) {
 }
 $usermatrix = kopfuebung_get_user_matrix($activities, $USER->id);
 $incorrectcount = kopfuebung_count_grid_incorrect($section, $usermatrix, $position);
-$isindividual = $DB->record_exists('kopfuebung_offer_users', [
-    'offerid' => $offer->id,
-    'userid' => $USER->id,
-]);
+$isindividual = in_array((int) $USER->id, $offer->userids, true);
 if (!$isindividual && $incorrectcount < (int) $offer->threshold) {
     throw new moodle_exception('additionaloffernotavailable', 'kopfuebung');
 }
 
-$explanation = kopfuebung_resolve_offer_target(
-    $course, $offer->explanationtype, $offer->explanationtarget
-);
-$practice = kopfuebung_resolve_offer_target($course, $offer->practicetype, $offer->practicetarget);
+$explanations = kopfuebung_resolve_offer_links($course, $offer, 'explanation');
+$practiceitems = kopfuebung_resolve_offer_links($course, $offer, 'practice');
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('additionalofferstudentheading', 'kopfuebung', $label));
@@ -204,13 +226,29 @@ if (trim((string) $offer->hint) !== '') {
     echo html_writer::div(format_text($offer->hint, $offer->hintformat, ['context' => $context]),
         'kopfuebung-additional-hint');
 }
-if ($explanation) {
-    echo html_writer::tag('p', get_string('explanationlinkintro', 'kopfuebung') . ' ' .
-        html_writer::link($explanation['url'], $explanation['name']));
+if ($explanations) {
+    $items = [];
+    foreach ($explanations as $explanation) {
+        $items[] = html_writer::tag('li', html_writer::link(
+            $explanation['url'],
+            $explanation['name'],
+            ['target' => '_blank', 'rel' => 'noopener noreferrer']
+        ));
+    }
+    echo html_writer::tag('p', get_string('explanationlinkintro', 'kopfuebung'));
+    echo html_writer::tag('ul', implode('', $items));
 }
-if ($practice) {
-    echo html_writer::tag('p', get_string('practicelinkintro', 'kopfuebung') . ' ' .
-        html_writer::link($practice['url'], $practice['name']));
+if ($practiceitems) {
+    $items = [];
+    foreach ($practiceitems as $practice) {
+        $items[] = html_writer::tag('li', html_writer::link(
+            $practice['url'],
+            $practice['name'],
+            ['target' => '_blank', 'rel' => 'noopener noreferrer']
+        ));
+    }
+    echo html_writer::tag('p', get_string('practicelinkintro', 'kopfuebung'));
+    echo html_writer::tag('ul', implode('', $items));
 }
 echo html_writer::div(get_string(
     $isindividual ? 'additionalofferindividualreason' : 'additionalofferthresholdreason',

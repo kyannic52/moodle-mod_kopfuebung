@@ -151,6 +151,18 @@
     width: 1.75rem;
 }
 
+.kopfuebung-additional-offer-teacher-icon.kopfuebung-additional-offer-configured {
+    background: #0f6cbf;
+    color: #fff;
+}
+
+.kopfuebung-additional-offer-counts {
+    color: #495057;
+    font-size: .8rem;
+    margin-left: .35rem;
+    white-space: nowrap;
+}
+
 .kopfuebung-additional-offer-student-icon {
     align-items: center;
     background: #ffc107;
