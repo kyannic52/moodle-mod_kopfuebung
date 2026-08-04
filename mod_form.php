@@ -30,7 +30,6 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
         $mform->addElement('duration', 'timelimit', get_string('timelimit', 'kopfuebung'), ['optional' => false]);
         $mform->setDefault('timelimit', 300);
         $mform->addHelpButton('timelimit', 'timelimit', 'kopfuebung');
-        $mform->addRule('timelimit', null, 'required', null, 'client');
 
         $mform->addElement('select', 'questioncount', get_string('questioncount', 'kopfuebung'), [
             8 => 8,
@@ -49,7 +48,11 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
 
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
-        if (($data['activitytype'] ?? 'exercise') !== 'overview' &&
+        $isoverview = ($data['activitytype'] ?? 'exercise') === 'overview';
+        if (!$isoverview && empty($data['timelimit'])) {
+            $errors['timelimit'] = get_string('required');
+        }
+        if (!$isoverview &&
                 !in_array((int) ($data['questioncount'] ?? 0), [8, 9, 10], true)) {
             $errors['questioncount'] = get_string('invalidquestioncount', 'kopfuebung');
         }

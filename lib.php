@@ -21,8 +21,12 @@ function kopfuebung_add_instance($data, $mform = null) {
     $data->activitystate = 0;
     $data->timestarted = null;
     $data->activitytype = ($data->activitytype ?? '') === 'overview' ? 'overview' : 'exercise';
-    $data->questioncount = in_array((int) $data->questioncount, [8, 9, 10], true)
-        ? (int) $data->questioncount
+    if ($data->activitytype === 'overview' || empty($data->timelimit)) {
+        $data->timelimit = 300;
+    }
+    $questioncount = (int) ($data->questioncount ?? 10);
+    $data->questioncount = in_array($questioncount, [8, 9, 10], true)
+        ? $questioncount
         : 10;
 
     return $DB->insert_record('kopfuebung', $data);
@@ -34,8 +38,12 @@ function kopfuebung_update_instance($data, $mform = null) {
     $data->id = $data->instance;
     $data->timemodified = time();
     $data->activitytype = ($data->activitytype ?? '') === 'overview' ? 'overview' : 'exercise';
-    $data->questioncount = in_array((int) $data->questioncount, [8, 9, 10], true)
-        ? (int) $data->questioncount
+    if ($data->activitytype === 'overview' || empty($data->timelimit)) {
+        $data->timelimit = 300;
+    }
+    $questioncount = (int) ($data->questioncount ?? 10);
+    $data->questioncount = in_array($questioncount, [8, 9, 10], true)
+        ? $questioncount
         : 10;
 
     return $DB->update_record('kopfuebung', $data);
