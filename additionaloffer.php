@@ -91,7 +91,9 @@ if ($canmanage) {
             return $link->linktype === 'activity';
         }))) : [],
         'explanationurls' => $offer ? implode("\n", array_map(static function($link): string {
-            return $link->target;
+            return trim((string) $link->linklabel) !== ''
+                ? $link->linklabel . ' | ' . $link->target
+                : $link->target;
         }, array_filter($offer->links['explanation'], static function($link): bool {
             return $link->linktype === 'url';
         }))) : '',
@@ -101,7 +103,9 @@ if ($canmanage) {
             return $link->linktype === 'activity';
         }))) : [],
         'practiceurls' => $offer ? implode("\n", array_map(static function($link): string {
-            return $link->target;
+            return trim((string) $link->linklabel) !== ''
+                ? $link->linklabel . ' | ' . $link->target
+                : $link->target;
         }, array_filter($offer->links['practice'], static function($link): bool {
             return $link->linktype === 'url';
         }))) : '',
@@ -171,11 +175,15 @@ if ($canmanage) {
                 }
             }
             $urls = preg_split('/\R/', trim($data->{$category . 'urls'} ?? ''), -1, PREG_SPLIT_NO_EMPTY);
-            foreach (array_unique(array_map('trim', $urls)) as $url) {
+            foreach (array_unique(array_map('trim', $urls)) as $line) {
+                $parts = array_map('trim', explode('|', $line, 2));
+                $linklabel = count($parts) === 2 ? clean_param($parts[0], PARAM_TEXT) : null;
+                $url = count($parts) === 2 ? $parts[1] : $parts[0];
                 $DB->insert_record('kopfuebung_offer_links', (object) [
                     'offerid' => $offerid,
                     'linkcategory' => $category,
                     'linktype' => 'url',
+                    'linklabel' => $linklabel !== '' ? core_text::substr($linklabel, 0, 255) : null,
                     'target' => $url,
                     'sortorder' => ++$sortorder,
                 ]);

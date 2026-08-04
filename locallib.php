@@ -561,6 +561,9 @@ function kopfuebung_resolve_offer_links(stdClass $course, stdClass $offer, strin
     foreach ($offer->links[$category] ?? [] as $link) {
         $target = kopfuebung_resolve_offer_target($course, $link->linktype, $link->target);
         if ($target) {
+            if ($link->linktype === 'url' && trim((string) $link->linklabel) !== '') {
+                $target['name'] = format_string($link->linklabel);
+            }
             $targets[] = $target;
         }
     }

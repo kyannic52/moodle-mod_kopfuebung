@@ -86,6 +86,7 @@ class additional_offer_form extends \moodleform {
         $mform->addElement('textarea', $prefix . 'urls', get_string('externalurls', 'kopfuebung'), [
             'rows' => 5,
             'cols' => 64,
+            'placeholder' => get_string('externalurlplaceholder', 'kopfuebung'),
         ]);
         $mform->setType($prefix . 'urls', PARAM_RAW_TRIMMED);
         $mform->addHelpButton($prefix . 'urls', 'externalurls', 'kopfuebung');
@@ -110,8 +111,9 @@ class additional_offer_form extends \moodleform {
                 }
             }
             $urls = preg_split('/\R/', trim($data[$prefix . 'urls'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
-            foreach ($urls as $url) {
-                $url = trim($url);
+            foreach ($urls as $line) {
+                $parts = array_map('trim', explode('|', $line, 2));
+                $url = count($parts) === 2 ? $parts[1] : $parts[0];
                 if (!preg_match('#^https?://#i', $url) || !filter_var($url, FILTER_VALIDATE_URL)) {
                     $errors[$prefix . 'urls'] = get_string('invalidurl', 'kopfuebung');
                     break;

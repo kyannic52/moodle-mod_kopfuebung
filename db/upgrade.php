@@ -226,5 +226,16 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080405, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080408) {
+        $table = new xmldb_table('kopfuebung_offer_links');
+        $field = new xmldb_field(
+            'linklabel', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'linktype'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026080408, 'kopfuebung');
+    }
+
     return true;
 }
