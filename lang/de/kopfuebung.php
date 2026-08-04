@@ -194,6 +194,13 @@ $string['additionalofferthresholdreason'] = 'Du siehst dieses Feedback, weil du 
 $string['viewadditionaloffer'] = 'Zusatzangebot für {$a} anzeigen';
 $string['additionaloffercounts'] = '({$a->condition} / {$a->individual} / {$a->total})';
 $string['additionaloffercountsexplanation'] = "Erklärung zu diesen Werten:\n\nx: Anzahl der Schülerinnen und Schüler, die den eingestellten Grenzwert falscher Antworten erreichen.\n\ny: Anzahl der Schülerinnen und Schüler, die individuell ausgewählt wurden.\n\nz: Gesamtzahl der in der Übersicht berücksichtigten Schülerinnen und Schüler.";
+$string['additionaloffercountsactual'] = 'Erklärung zu diesen Werten:
+
+{$a->condition} Schüler*innen wurde das Zusatzangebot aufgrund der festgelegten Regeln bereitgestellt.
+
+{$a->individual} Schüler*innen wurde das Zusatzangebot individuell bereitgestellt.
+
+Insgesamt gibt es {$a->total} Schüler*innen in diesem Kurs.';
 $string['editfeedback'] = 'Feedback bearbeiten';
 $string['editfeedbackheading'] = 'Feedback bearbeiten';
 $string['feedbackedited'] = 'bearbeitet';

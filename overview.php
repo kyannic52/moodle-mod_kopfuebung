@@ -404,11 +404,10 @@ if (!$activities) {
                 html_writer::span('↗', $iconclass, ['aria-hidden' => 'true']),
                 [
                     'class' => 'kopfuebung-additional-offer-link',
-                    'title' => get_string('additionaloffercountsexplanation', 'kopfuebung'),
                     'aria-label' => get_string('configureadditionaloffer', 'kopfuebung', $label),
                 ]
             );
-            $cell->attributes['title'] = get_string('additionaloffercountsexplanation', 'kopfuebung');
+            $cell->attributes['title'] = get_string('configureadditionaloffer', 'kopfuebung', $label);
             if ($offer) {
                 $incorrectbyuser = array_fill_keys(array_keys($participants), 0);
                 foreach ($section->activities as $activity) {
@@ -425,11 +424,20 @@ if (!$activities) {
                     return $count >= (int) $offer->threshold;
                 }));
                 $individualcount = count(array_intersect(array_keys($participants), $offer->userids));
-                $content .= html_writer::span(get_string('additionaloffercounts', 'kopfuebung', (object) [
+                $countdata = (object) [
                     'condition' => $conditioncount,
                     'individual' => $individualcount,
                     'total' => count($participants),
-                ]), 'kopfuebung-additional-offer-counts');
+                ];
+                $content .= html_writer::span(
+                    get_string('additionaloffercounts', 'kopfuebung', $countdata),
+                    'kopfuebung-additional-offer-counts'
+                );
+                $cell->attributes['title'] = get_string(
+                    'additionaloffercountsactual',
+                    'kopfuebung',
+                    $countdata
+                );
             }
             $cell->text = $content;
             return $cell;

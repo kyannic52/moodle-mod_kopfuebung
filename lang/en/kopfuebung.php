@@ -207,6 +207,13 @@ $string['additionalofferthresholdreason'] = 'You are seeing this feedback becaus
 $string['viewadditionaloffer'] = 'View additional offer for {$a}';
 $string['additionaloffercounts'] = '({$a->condition} / {$a->individual} / {$a->total})';
 $string['additionaloffercountsexplanation'] = "Explanation of these values:\n\nx: Number of students who meet the configured incorrect-answer threshold.\n\ny: Number of students selected individually.\n\nz: Total number of students included in the overview.";
+$string['additionaloffercountsactual'] = 'Explanation of these values:
+
+{$a->condition} students were provided with the additional offer based on the configured rules.
+
+{$a->individual} students were provided with the additional offer individually.
+
+There are {$a->total} students in this course in total.';
 $string['editfeedback'] = 'Edit feedback';
 $string['editfeedbackheading'] = 'Edit feedback';
 $string['feedbackedited'] = 'edited';
