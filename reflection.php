@@ -14,6 +14,8 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:attempt', $context);
 
+kopfuebung_close_expired_activity($kopfuebung);
+
 $attempt = kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id);
 if (!$attempt || empty($attempt->questionusageid)) {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]));
@@ -109,13 +111,16 @@ foreach (array_values($quba->get_slots()) as $index => $slot) {
         echo html_writer::tag('p', get_string('selfassessmentquestion', 'kopfuebung'), ['class' => 'font-weight-bold']);
         foreach ([1 => 'assessedcorrect', 0 => 'assessedincorrect'] as $value => $stringkey) {
             $inputid = 'prediction-' . $question->id . '-' . $value;
-            echo html_writer::empty_tag('input', [
+            $input = html_writer::empty_tag('input', [
                 'type' => 'radio', 'name' => $name, 'id' => $inputid, 'value' => $value,
                 'required' => 'required',
                 'checked' => $reflection && $reflection->predictedcorrect !== null &&
                     (int) $reflection->predictedcorrect === $value ? 'checked' : null,
             ]);
-            echo ' ' . html_writer::label(get_string($stringkey, 'kopfuebung'), $inputid, false, ['class' => 'mr-3']);
+            echo html_writer::tag('label',
+                $input . html_writer::span(get_string($stringkey, 'kopfuebung')),
+                ['for' => $inputid, 'class' => 'kopfuebung-reflection-option']
+            );
         }
     }
     if (!empty($kopfuebung->difficultyassessment)) {
@@ -124,7 +129,7 @@ foreach (array_values($quba->get_slots()) as $index => $slot) {
             ['class' => 'font-weight-bold d-block mt-2']);
         $optionshtml = html_writer::tag('option', get_string('choosedots', 'moodle'), ['value' => '']);
         for ($rating = 1; $rating <= 5; $rating++) {
-            $optionshtml .= html_writer::tag('option', get_string('difficultyvalue', 'kopfuebung', $rating), [
+            $optionshtml .= html_writer::tag('option', get_string('difficultyvalue' . $rating, 'kopfuebung'), [
                 'value' => $rating,
                 'selected' => $reflection && (int) $reflection->difficulty === $rating ? 'selected' : null,
             ]);

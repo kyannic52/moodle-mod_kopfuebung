@@ -14,6 +14,8 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:attempt', $context);
 
+kopfuebung_close_expired_activity($kopfuebung);
+
 $attempt = kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id);
 if (!$attempt || $attempt->status !== 'finished') {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]));

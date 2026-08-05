@@ -41,6 +41,9 @@ $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
 $activities = kopfuebung_get_course_activities($course);
+foreach ($activities as $activity) {
+    kopfuebung_close_expired_activity($activity);
+}
 $defaultlabels = kopfuebung_get_course_labels($course->id);
 $labelgrids = kopfuebung_get_course_label_grids($course->id);
 $gridsections = kopfuebung_get_course_grid_sections($course, $activities, $labelgrids);

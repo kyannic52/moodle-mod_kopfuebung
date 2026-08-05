@@ -16,6 +16,8 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:view', $context);
 
+kopfuebung_close_expired_activity($kopfuebung);
+
 $isownattempt = (int) $userid === (int) $USER->id && has_capability('mod/kopfuebung:attempt', $context);
 $canreviewothers = has_capability('mod/kopfuebung:viewreports', $context);
 if (!$isownattempt && !$canreviewothers) {

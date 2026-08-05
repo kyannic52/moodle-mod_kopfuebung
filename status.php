@@ -15,6 +15,8 @@ $context = context_module::instance($cm->id);
 require_login($course, true, $cm);
 require_capability('mod/kopfuebung:view', $context);
 
+kopfuebung_close_expired_activity($kopfuebung);
+
 $canattempt = has_capability('mod/kopfuebung:attempt', $context);
 $canstart = has_capability('mod/kopfuebung:startactivity', $context);
 $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [

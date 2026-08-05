@@ -29,8 +29,11 @@ if (data_submitted()) {
         $availablequestions,
         (int) $kopfuebung->questioncount
     );
+    $returntoactivity = optional_param('saveaction', 'save', PARAM_ALPHA) === 'saveandreturn';
     redirect(
-        $PAGE->url,
+        $returntoactivity
+            ? new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id])
+            : $PAGE->url,
         get_string('questionassignmentssaved', 'kopfuebung'),
         null,
         \core\output\notification::NOTIFY_SUCCESS
@@ -122,8 +125,18 @@ for ($position = 1; $position <= $kopfuebung->questioncount; $position++) {
 echo html_writer::div(html_writer::table($table), 'table-responsive');
 echo html_writer::tag('button', get_string('assignquestionselection', 'kopfuebung'), [
     'type' => 'submit',
+    'name' => 'saveaction',
+    'value' => 'save',
     'id' => 'kopfuebung-save-assignments',
     'class' => 'btn btn-secondary',
+    'disabled' => 'disabled',
+]);
+echo ' ' . html_writer::tag('button', get_string('saveassignmentsandreturn', 'kopfuebung'), [
+    'type' => 'submit',
+    'name' => 'saveaction',
+    'value' => 'saveandreturn',
+    'id' => 'kopfuebung-save-assignments-return',
+    'class' => 'btn btn-primary',
     'disabled' => 'disabled',
 ]);
 echo html_writer::end_tag('form');
@@ -131,13 +144,15 @@ echo html_writer::end_tag('form');
 $PAGE->requires->js_init_code("
 var form = document.getElementById('kopfuebung-assignment-form');
 var saveButton = document.getElementById('kopfuebung-save-assignments');
-if (form && saveButton) {
+var saveReturnButton = document.getElementById('kopfuebung-save-assignments-return');
+if (form && saveButton && saveReturnButton) {
     var selects = form.querySelectorAll('.kopfuebung-question-select');
     var updateButton = function() {
         var changed = Array.prototype.some.call(selects, function(select) {
             return select.value !== select.getAttribute('data-initial-value');
         });
         saveButton.disabled = !changed;
+        saveReturnButton.disabled = !changed;
         saveButton.classList.toggle('btn-primary', changed);
         saveButton.classList.toggle('btn-secondary', !changed);
     };

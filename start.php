@@ -2,6 +2,7 @@
 // This file is part of Moodle - http://moodle.org/
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/locallib.php');
 
 $id = required_param('id', PARAM_INT);
 $action = required_param('action', PARAM_ALPHA);
@@ -19,6 +20,7 @@ if ($action === 'start') {
     $kopfuebung->activitystate = 1;
     $kopfuebung->timestarted = time();
 } else if ($action === 'stop') {
+    kopfuebung_finish_open_attempts($kopfuebung);
     $kopfuebung->activitystate = 0;
     $DB->delete_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]);
 } else {

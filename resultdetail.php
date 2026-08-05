@@ -99,8 +99,22 @@ foreach ($participants as $participant) {
     $difficulty = !empty($kopfuebung->difficultyassessment) && $reflection && $reflection->difficulty !== null
         ? get_string('difficultyoutof', 'kopfuebung', $reflection->difficulty)
         : get_string('notavailableabbr', 'kopfuebung');
-    $row = new html_table_row([fullname($participant), $result, $assessment, $difficulty]);
-    $row->attributes['class'] = 'kopfuebung-result-' . $state;
+    $resultclass = in_array($state, ['correct', 'partiallycorrect', 'incorrect'], true)
+        ? 'kopfuebung-result-' . $state
+        : '';
+    $assessmentclass = '';
+    if (!empty($kopfuebung->selfassessment) && $reflection && $reflection->predictedcorrect !== null) {
+        $assessmentclass = $reflection->predictedcorrect
+            ? 'kopfuebung-assessment-correct'
+            : 'kopfuebung-assessment-incorrect';
+    }
+    $namecell = new html_table_cell(fullname($participant));
+    $namecell->attributes['class'] = $resultclass;
+    $resultcell = new html_table_cell($result);
+    $resultcell->attributes['class'] = $resultclass;
+    $assessmentcell = new html_table_cell($assessment);
+    $assessmentcell->attributes['class'] = $assessmentclass;
+    $row = new html_table_row([$namecell, $resultcell, $assessmentcell, $difficulty]);
     $table->data[] = $row;
 }
 

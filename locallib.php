@@ -311,6 +311,76 @@ function kopfuebung_get_latest_finished_attempt(int $kopfuebungid, int $userid):
     return $attempt ?: null;
 }
 
+/**
+ * Finish all still-open attempts and close an activity whose shared time limit has expired.
+ *
+ * A short grace period lets the browser submit the answers visible at 00:00 before another
+ * request closes the activity from the server side.
+ *
+ * @param stdClass $kopfuebung
+ * @param int $graceseconds
+ * @return bool Whether the activity was closed by this call.
+ */
+function kopfuebung_close_expired_activity(stdClass $kopfuebung, int $graceseconds = 2): bool {
+    global $CFG, $DB;
+
+    if (empty($kopfuebung->activitystate) || empty($kopfuebung->timestarted) ||
+            time() < (int) $kopfuebung->timestarted + (int) $kopfuebung->timelimit + $graceseconds) {
+        return false;
+    }
+
+    require_once($CFG->dirroot . '/question/engine/lib.php');
+    $now = time();
+    $transaction = $DB->start_delegated_transaction();
+    $attempts = $DB->get_records('kopfuebung_attempts', [
+        'kopfuebungid' => $kopfuebung->id,
+        'status' => 'inprogress',
+    ]);
+    foreach ($attempts as $attempt) {
+        if (!empty($attempt->questionusageid)) {
+            try {
+                $quba = question_engine::load_questions_usage_by_activity($attempt->questionusageid);
+                $quba->finish_all_questions($now);
+                question_engine::save_questions_usage_by_activity($quba);
+            } catch (Exception $exception) {
+                debugging($exception->getMessage(), DEBUG_DEVELOPER);
+            }
+        }
+        $attempt->status = 'finished';
+        $attempt->timefinished = $now;
+        $DB->update_record('kopfuebung_attempts', $attempt);
+    }
+    $DB->delete_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]);
+    $DB->set_field('kopfuebung', 'activitystate', 0, ['id' => $kopfuebung->id]);
+    $DB->set_field('kopfuebung', 'timemodified', $now, ['id' => $kopfuebung->id]);
+    $transaction->allow_commit();
+    $kopfuebung->activitystate = 0;
+    $kopfuebung->timemodified = $now;
+    return true;
+}
+
+/** Finish every currently open attempt, for example when a teacher stops an activity. */
+function kopfuebung_finish_open_attempts(stdClass $kopfuebung): void {
+    global $CFG, $DB;
+
+    require_once($CFG->dirroot . '/question/engine/lib.php');
+    $now = time();
+    $attempts = $DB->get_records('kopfuebung_attempts', [
+        'kopfuebungid' => $kopfuebung->id,
+        'status' => 'inprogress',
+    ]);
+    foreach ($attempts as $attempt) {
+        if (!empty($attempt->questionusageid)) {
+            $quba = question_engine::load_questions_usage_by_activity($attempt->questionusageid);
+            $quba->finish_all_questions($now);
+            question_engine::save_questions_usage_by_activity($quba);
+        }
+        $attempt->status = 'finished';
+        $attempt->timefinished = $now;
+        $DB->update_record('kopfuebung_attempts', $attempt);
+    }
+}
+
 /** Return whether an attempt still needs its configured reflection responses. */
 function kopfuebung_reflection_pending(stdClass $kopfuebung, stdClass $attempt): bool {
     global $DB;
