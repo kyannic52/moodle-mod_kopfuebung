@@ -296,7 +296,9 @@ if (!$activities) {
     $table->head = [get_string('topic', 'kopfuebung')];
     foreach ($activities as $activityindex => $activity) {
         if (isset($labelgrids[$activity->cmid])) {
-            $table->head[] = get_string('topic', 'kopfuebung');
+            $gridheading = new html_table_cell(get_string('topic', 'kopfuebung'));
+            $gridheading->attributes['class'] = 'kopfuebung-grid-start';
+            $table->head[] = $gridheading;
         }
         $activityheading = html_writer::link(
             new moodle_url('/mod/kopfuebung/view.php', ['id' => $activity->cmid]),
@@ -316,11 +318,13 @@ if (!$activities) {
         }
         $table->head[] = $activityheading;
         if (isset($gridsectionsbyendcmid[$activity->cmid])) {
-            $table->head[] = get_string(
+            $offerheading = new html_table_cell(get_string(
                 'additionaloffercolumn',
                 'kopfuebung',
                 $gridsectionsbyendcmid[$activity->cmid]->number
-            );
+            ));
+            $offerheading->attributes['class'] = 'kopfuebung-additional-offer-column';
+            $table->head[] = $offerheading;
         }
     }
 
@@ -519,7 +523,9 @@ if (!$activities) {
         foreach ($activities as $activity) {
             if (isset($labelgrids[$activity->cmid])) {
                 $grid = $labelgrids[$activity->cmid];
-                $row[] = $renderlabel((int) $grid->id, $grid->labels, $position);
+                $gridcell = new html_table_cell($renderlabel((int) $grid->id, $grid->labels, $position));
+                $gridcell->attributes['class'] = 'kopfuebung-grid-start';
+                $row[] = $gridcell;
             }
             if (!$canmanage && $activity->activitystate) {
                 $row[] = html_writer::span(
@@ -528,7 +534,11 @@ if (!$activities) {
                     ['title' => get_string('resultsavailableafteractivity', 'kopfuebung')]
                 );
                 if (isset($gridsectionsbyendcmid[$activity->cmid])) {
-                    $row[] = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                    $offercell = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                    $offercell->attributes['class'] = trim(
+                        ($offercell->attributes['class'] ?? '') . ' kopfuebung-additional-offer-column'
+                    );
+                    $row[] = $offercell;
                 }
                 continue;
             }
@@ -552,7 +562,11 @@ if (!$activities) {
                     'small text-muted kopfuebung-reflection-summary');
                 $row[] = $content . $renderdetailslink($activity, $position);
                 if (isset($gridsectionsbyendcmid[$activity->cmid])) {
-                    $row[] = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                    $offercell = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                    $offercell->attributes['class'] = trim(
+                        ($offercell->attributes['class'] ?? '') . ' kopfuebung-additional-offer-column'
+                    );
+                    $row[] = $offercell;
                 }
                 continue;
             }
@@ -600,7 +614,11 @@ if (!$activities) {
             $cell->attributes['class'] = 'kopfuebung-result-cell kopfuebung-result-' . $state;
             $row[] = $cell;
             if (isset($gridsectionsbyendcmid[$activity->cmid])) {
-                $row[] = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                $offercell = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
+                $offercell->attributes['class'] = trim(
+                    ($offercell->attributes['class'] ?? '') . ' kopfuebung-additional-offer-column'
+                );
+                $row[] = $offercell;
             }
         }
         $table->data[] = $row;
@@ -609,7 +627,9 @@ if (!$activities) {
     $sumrow = [html_writer::tag('strong', get_string('sum', 'kopfuebung'))];
     foreach ($activities as $activity) {
         if (isset($labelgrids[$activity->cmid])) {
-            $sumrow[] = html_writer::tag('strong', get_string('sum', 'kopfuebung'));
+            $gridcell = new html_table_cell(html_writer::tag('strong', get_string('sum', 'kopfuebung')));
+            $gridcell->attributes['class'] = 'kopfuebung-grid-start';
+            $sumrow[] = $gridcell;
         }
         $result = $matrix[$activity->id];
         if ($showallusers) {
@@ -631,7 +651,9 @@ if (!$activities) {
             }
         }
         if (isset($gridsectionsbyendcmid[$activity->cmid])) {
-            $sumrow[] = '';
+            $offercell = new html_table_cell('');
+            $offercell->attributes['class'] = 'kopfuebung-additional-offer-column';
+            $sumrow[] = $offercell;
         }
     }
     $table->data[] = $sumrow;
@@ -641,8 +663,12 @@ if (!$activities) {
         $accuracyrow = [html_writer::tag('strong', get_string('assessmentaccuracy', 'kopfuebung'))];
         foreach ($activities as $activity) {
             if (isset($labelgrids[$activity->cmid])) {
-                $assessmentrow[] = '';
-                $accuracyrow[] = '';
+                $assessmentgridcell = new html_table_cell('');
+                $assessmentgridcell->attributes['class'] = 'kopfuebung-grid-start';
+                $accuracygridcell = new html_table_cell('');
+                $accuracygridcell->attributes['class'] = 'kopfuebung-grid-start';
+                $assessmentrow[] = $assessmentgridcell;
+                $accuracyrow[] = $accuracygridcell;
             }
             $result = $matrix[$activity->id];
             if (!$canmanage && $activity->activitystate) {
@@ -665,8 +691,12 @@ if (!$activities) {
                 $accuracyrow[] = get_string('notavailableabbr', 'kopfuebung');
             }
             if (isset($gridsectionsbyendcmid[$activity->cmid])) {
-                $assessmentrow[] = '';
-                $accuracyrow[] = '';
+                $assessmentoffercell = new html_table_cell('');
+                $assessmentoffercell->attributes['class'] = 'kopfuebung-additional-offer-column';
+                $accuracyoffercell = new html_table_cell('');
+                $accuracyoffercell->attributes['class'] = 'kopfuebung-additional-offer-column';
+                $assessmentrow[] = $assessmentoffercell;
+                $accuracyrow[] = $accuracyoffercell;
             }
         }
         $table->data[] = $assessmentrow;

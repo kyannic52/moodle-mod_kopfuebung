@@ -25,6 +25,18 @@
     min-width: 12rem;
 }
 
+.kopfuebung-overview th.kopfuebung-grid-start,
+.kopfuebung-overview td.kopfuebung-grid-start {
+    border-left: 4px solid #6c757d !important;
+}
+
+.kopfuebung-overview th.kopfuebung-additional-offer-column,
+.kopfuebung-overview td.kopfuebung-additional-offer-column {
+    background-color: #eef8ff !important;
+    border-left: 2px solid #9ec5e5 !important;
+    border-right: 2px solid #9ec5e5 !important;
+}
+
 .kopfuebung-result-details {
     display: inline-flex;
     margin-left: 0.25rem;

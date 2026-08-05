@@ -24,15 +24,9 @@ if (($kopfuebung->activitytype ?? 'exercise') === 'overview') {
 $canattempt = has_capability('mod/kopfuebung:attempt', $context);
 $canstart = has_capability('mod/kopfuebung:startactivity', $context);
 $canmanagequestions = has_capability('mod/kopfuebung:managequestions', $context);
-$missingquestioncount = 0;
-if ($canmanagequestions) {
-    $assignedquestioncount = $DB->count_records_select(
-        'kopfuebung_questions',
-        'kopfuebungid = :kopfuebungid AND sortorder >= 1 AND sortorder <= :questioncount',
-        ['kopfuebungid' => $kopfuebung->id, 'questioncount' => $kopfuebung->questioncount]
-    );
-    $missingquestioncount = max(0, (int) $kopfuebung->questioncount - $assignedquestioncount);
-}
+$missingquestioncount = $canmanagequestions
+    ? optional_param('missingquestions', 0, PARAM_INT)
+    : 0;
 $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
     'kopfuebungid' => $kopfuebung->id,
     'userid' => $USER->id,

@@ -99,10 +99,25 @@ foreach (array_values($quba->get_slots()) as $index => $slot) {
     $assessment = !empty($kopfuebung->selfassessment) && $reflection && $reflection->predictedcorrect !== null
         ? get_string($reflection->predictedcorrect ? 'assessedcorrect' : 'assessedincorrect', 'kopfuebung')
         : get_string('notavailableabbr', 'kopfuebung');
+    $assessmentindicator = '';
+    if (!empty($kopfuebung->selfassessment) && $reflection && $reflection->predictedcorrect !== null) {
+        $qa = $quba->get_question_attempt($slot);
+        $mark = $qa->get_mark();
+        $maxmark = $quba->get_question_max_mark($slot);
+        if ($mark !== null && $qa->get_state()->is_finished()) {
+            $iscorrect = $maxmark > 0 && $mark >= $maxmark - 0.000005;
+            $assessmentmatches = (bool) $reflection->predictedcorrect === $iscorrect;
+            $assessmentindicator = ' ' . html_writer::span(
+                $assessmentmatches ? '✓' : '✕',
+                $assessmentmatches ? 'text-success font-weight-bold' : 'text-danger font-weight-bold',
+                ['title' => get_string($assessmentmatches ? 'assessmentmatched' : 'assessmentmismatched', 'kopfuebung')]
+            );
+        }
+    }
     $difficulty = !empty($kopfuebung->difficultyassessment) && $reflection && $reflection->difficulty !== null
         ? get_string('difficultyoutof', 'kopfuebung', $reflection->difficulty)
         : get_string('notavailableabbr', 'kopfuebung');
-    echo html_writer::div(get_string('selfassessment', 'kopfuebung') . ': ' . $assessment);
+    echo html_writer::div(get_string('selfassessment', 'kopfuebung') . ': ' . $assessment . $assessmentindicator);
     echo html_writer::div(get_string('difficultyassessment', 'kopfuebung') . ': ' . $difficulty);
     echo html_writer::end_div();
     echo html_writer::end_div();
