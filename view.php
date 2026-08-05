@@ -23,6 +23,16 @@ if (($kopfuebung->activitytype ?? 'exercise') === 'overview') {
 
 $canattempt = has_capability('mod/kopfuebung:attempt', $context);
 $canstart = has_capability('mod/kopfuebung:startactivity', $context);
+$canmanagequestions = has_capability('mod/kopfuebung:managequestions', $context);
+$missingquestioncount = 0;
+if ($canmanagequestions) {
+    $assignedquestioncount = $DB->count_records_select(
+        'kopfuebung_questions',
+        'kopfuebungid = :kopfuebungid AND sortorder >= 1 AND sortorder <= :questioncount',
+        ['kopfuebungid' => $kopfuebung->id, 'questioncount' => $kopfuebung->questioncount]
+    );
+    $missingquestioncount = max(0, (int) $kopfuebung->questioncount - $assignedquestioncount);
+}
 $userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
     'kopfuebungid' => $kopfuebung->id,
     'userid' => $USER->id,
@@ -132,6 +142,69 @@ window.setInterval(pollStatus, 2000);
 echo $OUTPUT->header();
 echo $OUTPUT->heading(format_string($kopfuebung->name));
 echo format_module_intro('kopfuebung', $kopfuebung, $cm->id);
+
+if ($missingquestioncount > 0) {
+    $settingsurl = new moodle_url('/course/modedit.php', ['update' => $cm->id, 'return' => 1]);
+    $managequestionsurl = new moodle_url('/mod/kopfuebung/manage.php', ['id' => $cm->id]);
+    echo html_writer::start_div('kopfuebung-modal-backdrop', [
+        'id' => 'kopfuebung-missing-questions-modal',
+        'role' => 'dialog',
+        'aria-modal' => 'true',
+        'aria-labelledby' => 'kopfuebung-missing-questions-title',
+        'aria-describedby' => 'kopfuebung-missing-questions-description',
+    ]);
+    echo html_writer::start_div('kopfuebung-modal card shadow-lg');
+    echo html_writer::start_div('card-body');
+    echo html_writer::tag('h3', get_string('missingquestionassignmentsheading', 'kopfuebung'), [
+        'id' => 'kopfuebung-missing-questions-title',
+        'class' => 'card-title',
+    ]);
+    $promptstring = $missingquestioncount === 1
+        ? 'missingquestionassignmentpromptone'
+        : 'missingquestionassignmentsprompt';
+    echo html_writer::tag('p', get_string($promptstring, 'kopfuebung', $missingquestioncount), [
+        'id' => 'kopfuebung-missing-questions-description',
+    ]);
+    echo html_writer::start_div('kopfuebung-modal-actions');
+    echo html_writer::link($settingsurl, get_string('adjustquestioncount', 'kopfuebung'), [
+        'class' => 'btn btn-primary',
+    ]);
+    echo html_writer::link($managequestionsurl, get_string('assignmissingquestions', 'kopfuebung'), [
+        'class' => 'btn btn-secondary',
+    ]);
+    echo html_writer::tag('button', get_string('cancel'), [
+        'type' => 'button',
+        'class' => 'btn btn-link',
+        'id' => 'kopfuebung-close-missing-questions',
+    ]);
+    echo html_writer::end_div();
+    echo html_writer::end_div();
+    echo html_writer::end_div();
+    echo html_writer::end_div();
+
+    $PAGE->requires->js_init_code(<<<JS
+var missingQuestionsModal = document.getElementById('kopfuebung-missing-questions-modal');
+var closeMissingQuestions = document.getElementById('kopfuebung-close-missing-questions');
+if (missingQuestionsModal && closeMissingQuestions) {
+    var closeMissingQuestionsModal = function() {
+        missingQuestionsModal.remove();
+    };
+    closeMissingQuestions.addEventListener('click', closeMissingQuestionsModal);
+    missingQuestionsModal.addEventListener('click', function(event) {
+        if (event.target === missingQuestionsModal) {
+            closeMissingQuestionsModal();
+        }
+    });
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && document.body.contains(missingQuestionsModal)) {
+            closeMissingQuestionsModal();
+        }
+    });
+    closeMissingQuestions.focus();
+}
+JS
+    );
+}
 
 if ($canattempt) {
     if ($attemptfinished) {
