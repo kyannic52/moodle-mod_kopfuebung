@@ -48,6 +48,16 @@ class provider implements \core_privacy\local\metadata\provider {
         );
 
         $collection->add_database_table(
+            'kopfuebung_reflections',
+            [
+                'predictedcorrect' => 'privacy:metadata:kopfuebung_reflections:predictedcorrect',
+                'difficulty' => 'privacy:metadata:kopfuebung_reflections:difficulty',
+                'timemodified' => 'privacy:metadata:kopfuebung_reflections:timemodified',
+            ],
+            'privacy:metadata:kopfuebung_reflections'
+        );
+
+        $collection->add_database_table(
             'kopfuebung_offers',
             [
                 'hint' => 'privacy:metadata:kopfuebung_offers:hint',

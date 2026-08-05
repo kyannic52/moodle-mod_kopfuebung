@@ -539,6 +539,14 @@ if (!$activities) {
                     'percentage' => $percentage,
                     'answered' => $cell['answered'],
                 ]);
+                $assessment = !empty($activity->selfassessment) && $cell['assessmentcount'] > 0
+                    ? round(100 * $cell['assessmentmatches'] / $cell['assessmentcount']) . '%'
+                    : get_string('notavailableabbr', 'kopfuebung');
+                $difficulty = !empty($activity->difficultyassessment) && $cell['difficultycount'] > 0
+                    ? format_float($cell['difficultytotal'] / $cell['difficultycount'], 1)
+                    : get_string('notavailableabbr', 'kopfuebung');
+                $content .= html_writer::div('(' . $assessment . ' / ' . $difficulty . ')',
+                    'small text-muted kopfuebung-reflection-summary');
                 $row[] = $content . $renderdetailslink($activity, $position);
                 if (isset($gridsectionsbyendcmid[$activity->cmid])) {
                     $row[] = $renderadditionaloffer($gridsectionsbyendcmid[$activity->cmid], $position);
@@ -602,7 +610,7 @@ if (!$activities) {
         }
         $result = $matrix[$activity->id];
         if ($showallusers) {
-            $totalpossible = $result['participantcount'] * count($result['cells']);
+            $totalpossible = $result['participantcount'] * (int) $activity->questioncount;
             $percentage = $totalpossible > 0
                 ? (int) round(100 * $result['correct'] / $totalpossible)
                 : 0;
@@ -613,7 +621,7 @@ if (!$activities) {
             } else if ($result['attemptid']) {
                 $sumrow[] = get_string('scoreoutof', 'kopfuebung', [
                     'score' => $result['correct'],
-                    'total' => count($result['cells']),
+                    'total' => (int) $activity->questioncount,
                 ]);
             } else {
                 $sumrow[] = get_string('notattempted', 'kopfuebung');
@@ -624,6 +632,43 @@ if (!$activities) {
         }
     }
     $table->data[] = $sumrow;
+
+    if (!$showallusers) {
+        $assessmentrow = [html_writer::tag('strong', get_string('selfassessmentresult', 'kopfuebung'))];
+        $accuracyrow = [html_writer::tag('strong', get_string('assessmentaccuracy', 'kopfuebung'))];
+        foreach ($activities as $activity) {
+            if (isset($labelgrids[$activity->cmid])) {
+                $assessmentrow[] = '';
+                $accuracyrow[] = '';
+            }
+            $result = $matrix[$activity->id];
+            if (!$canmanage && $activity->activitystate) {
+                $assessmentrow[] = get_string('resultswithheldshort', 'kopfuebung');
+                $accuracyrow[] = get_string('resultswithheldshort', 'kopfuebung');
+            } else if (!empty($activity->selfassessment) &&
+                    $result['selfassessedcount'] === (int) $activity->questioncount) {
+                $assessmentrow[] = get_string('reflectionpercentage', 'kopfuebung', [
+                    'percentage' => (int) round(100 * $result['selfassessedcorrect'] / $activity->questioncount),
+                    'count' => $result['selfassessedcorrect'],
+                    'total' => $activity->questioncount,
+                ]);
+                $accuracyrow[] = get_string('reflectionpercentage', 'kopfuebung', [
+                    'percentage' => (int) round(100 * $result['assessmentmatches'] / $activity->questioncount),
+                    'count' => $result['assessmentmatches'],
+                    'total' => $activity->questioncount,
+                ]);
+            } else {
+                $assessmentrow[] = get_string('notavailableabbr', 'kopfuebung');
+                $accuracyrow[] = get_string('notavailableabbr', 'kopfuebung');
+            }
+            if (isset($gridsectionsbyendcmid[$activity->cmid])) {
+                $assessmentrow[] = '';
+                $accuracyrow[] = '';
+            }
+        }
+        $table->data[] = $assessmentrow;
+        $table->data[] = $accuracyrow;
+    }
 
     echo html_writer::div(html_writer::table($table), 'table-responsive');
     if (!$showallusers) {

@@ -41,9 +41,15 @@ $selectedquestions = $DB->get_records(
     'sortorder ASC, id ASC',
     'id, sortorder'
 );
+$selectedquestions = array_values($selectedquestions);
 $positions = array_map(static function($selectedquestion): int {
     return (int) $selectedquestion->sortorder;
-}, array_values($selectedquestions));
+}, $selectedquestions);
+$reflectionrecords = $DB->get_records('kopfuebung_reflections', ['attemptid' => $attempt->id]);
+$reflectionsbyquestion = [];
+foreach ($reflectionrecords as $reflection) {
+    $reflectionsbyquestion[(int) $reflection->kopfquestionid] = $reflection;
+}
 
 $PAGE->set_url('/mod/kopfuebung/review.php', ['id' => $cm->id, 'userid' => $reviewuser->id]);
 $PAGE->set_title(get_string('attemptreview', 'kopfuebung'));
@@ -79,11 +85,24 @@ echo html_writer::tag('p', get_string('attemptreviewintro', 'kopfuebung'));
 
 foreach (array_values($quba->get_slots()) as $index => $slot) {
     $position = $positions[$index] ?? ($index + 1);
+    $selectedquestion = $selectedquestions[$index] ?? null;
+    $reflection = $selectedquestion ? ($reflectionsbyquestion[(int) $selectedquestion->id] ?? null) : null;
     echo html_writer::start_div('kopfuebung-review-question', [
         'id' => 'question-' . $position,
         'tabindex' => '-1',
     ]);
     echo $quba->render_question($slot, $options, $index + 1);
+    echo html_writer::start_div('kopfuebung-reflection-review card card-body mt-2');
+    echo html_writer::tag('strong', get_string('selfreflection', 'kopfuebung'));
+    $assessment = !empty($kopfuebung->selfassessment) && $reflection && $reflection->predictedcorrect !== null
+        ? get_string($reflection->predictedcorrect ? 'assessedcorrect' : 'assessedincorrect', 'kopfuebung')
+        : get_string('notavailableabbr', 'kopfuebung');
+    $difficulty = !empty($kopfuebung->difficultyassessment) && $reflection && $reflection->difficulty !== null
+        ? get_string('difficultyoutof', 'kopfuebung', $reflection->difficulty)
+        : get_string('notavailableabbr', 'kopfuebung');
+    echo html_writer::div(get_string('selfassessment', 'kopfuebung') . ': ' . $assessment);
+    echo html_writer::div(get_string('difficultyassessment', 'kopfuebung') . ': ' . $difficulty);
+    echo html_writer::end_div();
     echo html_writer::end_div();
 }
 

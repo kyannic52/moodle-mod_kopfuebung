@@ -18,6 +18,9 @@ $attempt = kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id);
 if (!$attempt || $attempt->status !== 'finished') {
     redirect(new moodle_url('/mod/kopfuebung/view.php', ['id' => $cm->id]));
 }
+if (kopfuebung_reflection_pending($kopfuebung, $attempt)) {
+    redirect(new moodle_url('/mod/kopfuebung/reflection.php', ['id' => $cm->id]));
+}
 
 $remainingseconds = $kopfuebung->activitystate
     ? max(0, $kopfuebung->timestarted + $kopfuebung->timelimit - time())

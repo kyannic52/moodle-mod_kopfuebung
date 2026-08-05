@@ -39,8 +39,18 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
         $mform->setDefault('questioncount', 10);
         $mform->addHelpButton('questioncount', 'questioncount', 'kopfuebung');
 
+        $mform->addElement('advcheckbox', 'selfassessment', get_string('selfassessment', 'kopfuebung'));
+        $mform->setDefault('selfassessment', 0);
+        $mform->addHelpButton('selfassessment', 'selfassessment', 'kopfuebung');
+
+        $mform->addElement('advcheckbox', 'difficultyassessment', get_string('difficultyassessment', 'kopfuebung'));
+        $mform->setDefault('difficultyassessment', 0);
+        $mform->addHelpButton('difficultyassessment', 'difficultyassessment', 'kopfuebung');
+
         $mform->hideIf('timelimit', 'activitytype', 'eq', 'overview');
         $mform->hideIf('questioncount', 'activitytype', 'eq', 'overview');
+        $mform->hideIf('selfassessment', 'activitytype', 'eq', 'overview');
+        $mform->hideIf('difficultyassessment', 'activitytype', 'eq', 'overview');
 
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();

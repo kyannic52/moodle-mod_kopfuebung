@@ -242,7 +242,7 @@ function kopfuebung_get_course_activities(stdClass $course): array {
         $activity = $DB->get_record(
             'kopfuebung',
             ['id' => $cm->instance],
-            'id, name, activitytype, activitystate, timestarted, timelimit',
+            'id, name, activitytype, activitystate, timestarted, timelimit, questioncount, selfassessment, difficultyassessment',
             IGNORE_MISSING
         );
         if (!$activity || $activity->activitytype === 'overview') {
@@ -311,6 +311,38 @@ function kopfuebung_get_latest_finished_attempt(int $kopfuebungid, int $userid):
     return $attempt ?: null;
 }
 
+/** Return whether an attempt still needs its configured reflection responses. */
+function kopfuebung_reflection_pending(stdClass $kopfuebung, stdClass $attempt): bool {
+    global $DB;
+
+    if (empty($kopfuebung->selfassessment) && empty($kopfuebung->difficultyassessment)) {
+        return false;
+    }
+    $questionids = $DB->get_fieldset_select(
+        'kopfuebung_questions', 'id',
+        'kopfuebungid = :id AND sortorder <= :count',
+        ['id' => $kopfuebung->id, 'count' => $kopfuebung->questioncount]
+    );
+    if (!$questionids) {
+        return false;
+    }
+    list($insql, $params) = $DB->get_in_or_equal($questionids, SQL_PARAMS_NAMED, 'question');
+    $params['attemptid'] = $attempt->id;
+    $conditions = [];
+    if (!empty($kopfuebung->selfassessment)) {
+        $conditions[] = 'predictedcorrect IS NOT NULL';
+    }
+    if (!empty($kopfuebung->difficultyassessment)) {
+        $conditions[] = 'difficulty IS NOT NULL';
+    }
+    $completed = $DB->count_records_select(
+        'kopfuebung_reflections',
+        "attemptid = :attemptid AND kopfquestionid $insql AND " . implode(' AND ', $conditions),
+        $params
+    );
+    return $completed < count($questionids);
+}
+
 /**
  * Delete every attempt of one user for an activity so a clean retry is possible.
  *
@@ -328,6 +360,7 @@ function kopfuebung_reset_user_attempts(int $kopfuebungid, int $userid): void {
     ]);
     $transaction = $DB->start_delegated_transaction();
     foreach ($attempts as $attempt) {
+        $DB->delete_records('kopfuebung_reflections', ['attemptid' => $attempt->id]);
         $DB->delete_records('kopfuebung_answers', ['attemptid' => $attempt->id]);
         if (!empty($attempt->questionusageid)) {
             question_engine::delete_questions_usage_by_activity($attempt->questionusageid);
@@ -695,6 +728,12 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
             'graded' => 0,
             'attemptid' => 0,
             'finished' => false,
+            'reflections' => [],
+            'selfassessedcorrect' => 0,
+            'selfassessedcount' => 0,
+            'assessmentmatches' => 0,
+            'difficultytotal' => 0,
+            'difficultycount' => 0,
         ];
 
         $attempts = $DB->get_records(
@@ -732,15 +771,34 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
                 'sortorder ASC, id ASC',
                 'id, sortorder'
             );
+            $selectedquestions = array_values($selectedquestions);
             $positions = array_map(static function($selectedquestion) {
                 return (int) $selectedquestion->sortorder;
-            }, array_values($selectedquestions));
+            }, $selectedquestions);
+            $reflectionrecords = $DB->get_records('kopfuebung_reflections', ['attemptid' => $attempt->id]);
+            $reflectionsbyquestion = [];
+            foreach ($reflectionrecords as $reflection) {
+                $reflectionsbyquestion[(int) $reflection->kopfquestionid] = $reflection;
+            }
             foreach (array_values($quba->get_slots()) as $index => $slot) {
                 $position = $positions[$index] ?? ($index + 1);
                 if ($position < 1 || $position > 10) {
                     continue;
                 }
 
+                $selectedquestion = $selectedquestions[$index] ?? null;
+                $reflection = $selectedquestion ? ($reflectionsbyquestion[(int) $selectedquestion->id] ?? null) : null;
+                if ($reflection) {
+                    $result['reflections'][$position] = $reflection;
+                    if ($reflection->predictedcorrect !== null) {
+                        $result['selfassessedcount']++;
+                        $result['selfassessedcorrect'] += (int) $reflection->predictedcorrect;
+                    }
+                    if ($reflection->difficulty !== null) {
+                        $result['difficultycount']++;
+                        $result['difficultytotal'] += (int) $reflection->difficulty;
+                    }
+                }
                 $qa = $quba->get_question_attempt($slot);
                 $mark = $qa->get_mark();
                 $maxmark = $quba->get_question_max_mark($slot);
@@ -757,6 +815,12 @@ function kopfuebung_get_user_matrix(array $activities, int $userid): array {
                     $result['cells'][$position] = 'partiallycorrect';
                 } else {
                     $result['cells'][$position] = 'incorrect';
+                }
+                if ($reflection && $reflection->predictedcorrect !== null) {
+                    $iscorrect = $result['cells'][$position] === 'correct';
+                    if ((bool) $reflection->predictedcorrect === $iscorrect) {
+                        $result['assessmentmatches']++;
+                    }
                 }
             }
         } catch (Exception $exception) {
@@ -788,10 +852,18 @@ function kopfuebung_get_group_matrix(array $activities, array $userids): array {
                 'correct' => 0,
                 'answered' => 0,
                 'incorrectuserids' => [],
+                'assessmentmatches' => 0,
+                'assessmentcount' => 0,
+                'difficultytotal' => 0,
+                'difficultycount' => 0,
             ]),
             'correct' => 0,
             'answered' => 0,
             'participantcount' => $participantcount,
+            'assessmentmatches' => 0,
+            'assessmentcount' => 0,
+            'difficultytotal' => 0,
+            'difficultycount' => 0,
         ];
     }
 
@@ -799,6 +871,22 @@ function kopfuebung_get_group_matrix(array $activities, array $userids): array {
         $usermatrix = kopfuebung_get_user_matrix($activities, $userid);
         foreach ($activities as $activity) {
             foreach ($usermatrix[$activity->id]['cells'] as $position => $state) {
+                $reflection = $usermatrix[$activity->id]['reflections'][$position] ?? null;
+                if ($reflection && $reflection->predictedcorrect !== null && in_array($state, ['correct', 'partiallycorrect', 'incorrect'], true)) {
+                    $matrix[$activity->id]['cells'][$position]['assessmentcount']++;
+                    $matrix[$activity->id]['assessmentcount']++;
+                    $matches = ((bool) $reflection->predictedcorrect) === ($state === 'correct');
+                    if ($matches) {
+                        $matrix[$activity->id]['cells'][$position]['assessmentmatches']++;
+                        $matrix[$activity->id]['assessmentmatches']++;
+                    }
+                }
+                if ($reflection && $reflection->difficulty !== null) {
+                    $matrix[$activity->id]['cells'][$position]['difficultytotal'] += (int) $reflection->difficulty;
+                    $matrix[$activity->id]['cells'][$position]['difficultycount']++;
+                    $matrix[$activity->id]['difficultytotal'] += (int) $reflection->difficulty;
+                    $matrix[$activity->id]['difficultycount']++;
+                }
                 if ($state === 'correct') {
                     $matrix[$activity->id]['cells'][$position]['correct']++;
                     $matrix[$activity->id]['correct']++;

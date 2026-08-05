@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/kopfuebung/db" VERSION="2026080408" COMMENT="XMLDB file for Moodle mod_kopfuebung"
+<XMLDB PATH="mod/kopfuebung/db" VERSION="2026080500" COMMENT="XMLDB file for Moodle mod_kopfuebung"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd">
   <TABLES>
@@ -13,6 +13,8 @@
         <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timelimit" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="300" SEQUENCE="false"/>
         <FIELD NAME="questioncount" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="10" SEQUENCE="false"/>
+        <FIELD NAME="selfassessment" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="difficultyassessment" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="activitystate" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timestarted" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
@@ -152,6 +154,25 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="course_recipient" UNIQUE="false" FIELDS="courseid, userid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="kopfuebung_reflections" COMMENT="Student self-assessment and difficulty ratings for submitted questions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="attemptid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="kopfquestionid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="predictedcorrect" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="difficulty" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="attemptfk" TYPE="foreign" FIELDS="attemptid" REFTABLE="kopfuebung_attempts" REFFIELDS="id"/>
+        <KEY NAME="kopfquestionfk" TYPE="foreign" FIELDS="kopfquestionid" REFTABLE="kopfuebung_questions" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="attempt_question" UNIQUE="true" FIELDS="attemptid, kopfquestionid"/>
       </INDEXES>
     </TABLE>
 

@@ -28,6 +28,8 @@ function kopfuebung_add_instance($data, $mform = null) {
     $data->questioncount = in_array($questioncount, [8, 9, 10], true)
         ? $questioncount
         : 10;
+    $data->selfassessment = empty($data->selfassessment) ? 0 : 1;
+    $data->difficultyassessment = empty($data->difficultyassessment) ? 0 : 1;
 
     return $DB->insert_record('kopfuebung', $data);
 }
@@ -45,6 +47,8 @@ function kopfuebung_update_instance($data, $mform = null) {
     $data->questioncount = in_array($questioncount, [8, 9, 10], true)
         ? $questioncount
         : 10;
+    $data->selfassessment = empty($data->selfassessment) ? 0 : 1;
+    $data->difficultyassessment = empty($data->difficultyassessment) ? 0 : 1;
 
     return $DB->update_record('kopfuebung', $data);
 }
@@ -91,6 +95,7 @@ function kopfuebung_delete_instance($id) {
     );
     if ($attemptids) {
         list($insql, $params) = $DB->get_in_or_equal($attemptids, SQL_PARAMS_NAMED);
+        $DB->delete_records_select('kopfuebung_reflections', "attemptid $insql", $params);
         $DB->delete_records_select('kopfuebung_answers', "attemptid $insql", $params);
     }
     foreach ($questionusageids as $questionusageid) {

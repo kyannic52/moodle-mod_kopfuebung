@@ -52,7 +52,8 @@ require_capability('mod/kopfuebung:attempt', $context);
 
 $finishedattempt = kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id);
 if ($finishedattempt) {
-    redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
+    $destination = kopfuebung_reflection_pending($kopfuebung, $finishedattempt) ? 'reflection.php' : 'complete.php';
+    redirect(new moodle_url('/mod/kopfuebung/' . $destination, ['id' => $cm->id]));
 }
 
 if (!$kopfuebung->activitystate) {
@@ -111,7 +112,9 @@ if (data_submitted() && confirm_sesskey()) {
         ]);
         question_engine::save_questions_usage_by_activity($quba);
         $transaction->allow_commit();
-        redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
+        $destination = (!empty($kopfuebung->selfassessment) || !empty($kopfuebung->difficultyassessment))
+            ? 'reflection.php' : 'complete.php';
+        redirect(new moodle_url('/mod/kopfuebung/' . $destination, ['id' => $cm->id]));
     }
 
     question_engine::save_questions_usage_by_activity($quba);
@@ -132,7 +135,9 @@ if ($expired) {
     ]);
     question_engine::save_questions_usage_by_activity($quba);
     $transaction->allow_commit();
-    redirect(new moodle_url('/mod/kopfuebung/complete.php', ['id' => $cm->id]));
+    $destination = (!empty($kopfuebung->selfassessment) || !empty($kopfuebung->difficultyassessment))
+        ? 'reflection.php' : 'complete.php';
+    redirect(new moodle_url('/mod/kopfuebung/' . $destination, ['id' => $cm->id]));
 }
 
 $PAGE->set_url('/mod/kopfuebung/attempt.php', ['id' => $cm->id]);

@@ -207,6 +207,29 @@
     outline: none;
 }
 
+.kopfuebung-reflection-question {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+
+.kopfuebung-reflection-fields {
+    position: sticky;
+    top: 1rem;
+}
+
+@media (max-width: 991.98px) {
+    .kopfuebung-reflection-question {
+        grid-template-columns: 1fr;
+    }
+
+    .kopfuebung-reflection-fields {
+        position: static;
+    }
+}
+
 @media (max-width: 767.98px) {
     #kopfuebung-timer.kopfuebung-timer-fixed {
         top: 3.75rem;

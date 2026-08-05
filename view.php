@@ -31,6 +31,9 @@ $finishedattempt = $canattempt
     ? kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id)
     : null;
 $attemptfinished = (bool) $finishedattempt;
+if ($attemptfinished && kopfuebung_reflection_pending($kopfuebung, $finishedattempt)) {
+    redirect(new moodle_url('/mod/kopfuebung/reflection.php', ['id' => $cm->id]));
+}
 if ($attemptfinished) {
     $userready = false;
 }

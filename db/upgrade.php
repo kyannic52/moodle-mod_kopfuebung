@@ -237,5 +237,37 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080408, 'kopfuebung');
     }
 
+    if ($oldversion < 2026080500) {
+        $activitytable = new xmldb_table('kopfuebung');
+        $selfassessment = new xmldb_field(
+            'selfassessment', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'questioncount'
+        );
+        if (!$dbman->field_exists($activitytable, $selfassessment)) {
+            $dbman->add_field($activitytable, $selfassessment);
+        }
+        $difficultyassessment = new xmldb_field(
+            'difficultyassessment', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'selfassessment'
+        );
+        if (!$dbman->field_exists($activitytable, $difficultyassessment)) {
+            $dbman->add_field($activitytable, $difficultyassessment);
+        }
+
+        $table = new xmldb_table('kopfuebung_reflections');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('attemptid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('kopfquestionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('predictedcorrect', XMLDB_TYPE_INTEGER, '1', null, null);
+        $table->add_field('difficulty', XMLDB_TYPE_INTEGER, '1', null, null);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('attemptfk', XMLDB_KEY_FOREIGN, ['attemptid'], 'kopfuebung_attempts', ['id']);
+        $table->add_key('kopfquestionfk', XMLDB_KEY_FOREIGN, ['kopfquestionid'], 'kopfuebung_questions', ['id']);
+        $table->add_index('attempt_question', XMLDB_INDEX_UNIQUE, ['attemptid', 'kopfquestionid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+        upgrade_mod_savepoint(true, 2026080500, 'kopfuebung');
+    }
+
     return true;
 }

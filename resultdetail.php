@@ -32,6 +32,9 @@ $activity = (object) [
     'activitystate' => $kopfuebung->activitystate,
     'timestarted' => $kopfuebung->timestarted,
     'timelimit' => $kopfuebung->timelimit,
+    'questioncount' => $kopfuebung->questioncount,
+    'selfassessment' => $kopfuebung->selfassessment,
+    'difficultyassessment' => $kopfuebung->difficultyassessment,
 ];
 $activities = kopfuebung_get_course_activities($course);
 $participants = kopfuebung_get_course_participants($course, $activities);
@@ -58,7 +61,12 @@ if ($questionname !== '') {
 
 $table = new html_table();
 $table->attributes['class'] = 'generaltable kopfuebung-result-detail';
-$table->head = [get_string('participant', 'kopfuebung'), get_string('result', 'kopfuebung')];
+$table->head = [
+    get_string('participant', 'kopfuebung'),
+    get_string('result', 'kopfuebung'),
+    get_string('selfassessment', 'kopfuebung'),
+    get_string('difficultyassessment', 'kopfuebung'),
+];
 
 foreach ($participants as $participant) {
     $usermatrix = kopfuebung_get_user_matrix([$activity], $participant->id);
@@ -84,7 +92,14 @@ foreach ($participants as $participant) {
             ['title' => get_string('reviewquestionfor', 'kopfuebung', fullname($participant))]
         );
     }
-    $row = new html_table_row([fullname($participant), $result]);
+    $reflection = $usermatrix[$activity->id]['reflections'][$position] ?? null;
+    $assessment = !empty($kopfuebung->selfassessment) && $reflection && $reflection->predictedcorrect !== null
+        ? get_string($reflection->predictedcorrect ? 'assessedcorrect' : 'assessedincorrect', 'kopfuebung')
+        : get_string('notavailableabbr', 'kopfuebung');
+    $difficulty = !empty($kopfuebung->difficultyassessment) && $reflection && $reflection->difficulty !== null
+        ? get_string('difficultyoutof', 'kopfuebung', $reflection->difficulty)
+        : get_string('notavailableabbr', 'kopfuebung');
+    $row = new html_table_row([fullname($participant), $result, $assessment, $difficulty]);
     $row->attributes['class'] = 'kopfuebung-result-' . $state;
     $table->data[] = $row;
 }
