@@ -45,8 +45,52 @@ $response = [
     'attemptfinished' => (bool) $finishedattempt,
     'remainingseconds' => $remainingseconds,
 ];
-if ($canstart) {
+if ($canattempt || $canstart) {
     $response['readycount'] = $DB->count_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]);
+}
+if ($canstart) {
+
+    $participantids = array_keys(get_enrolled_users($context, 'mod/kopfuebung:attempt', 0, 'u.id'));
+    $latestattempts = [];
+    if ($participantids) {
+        [$insql, $inparams] = $DB->get_in_or_equal($participantids, SQL_PARAMS_NAMED, 'participant');
+        $attemptwhere = 'kopfuebungid = :activityid AND userid ' . $insql;
+        $attemptparams = ['activityid' => $kopfuebung->id] + $inparams;
+        if (!empty($kopfuebung->activitystate) && !empty($kopfuebung->timestarted)) {
+            $attemptwhere .= ' AND timestarted >= :activitystart';
+            $attemptparams['activitystart'] = $kopfuebung->timestarted;
+        }
+        $attempts = $DB->get_records_select(
+            'kopfuebung_attempts',
+            $attemptwhere,
+            $attemptparams,
+            'userid ASC, id DESC'
+        );
+        foreach ($attempts as $participantattempt) {
+            if (!isset($latestattempts[$participantattempt->userid])) {
+                $latestattempts[$participantattempt->userid] = $participantattempt;
+            }
+        }
+    }
+    $response['started'] = count($latestattempts);
+    $response['finished'] = 0;
+    $response['selfassessed'] = 0;
+    $response['difficultyassessed'] = 0;
+    foreach ($latestattempts as $participantattempt) {
+        if ($participantattempt->status !== 'finished') {
+            continue;
+        }
+        $response['finished']++;
+        $reflections = $DB->get_records('kopfuebung_reflections', ['attemptid' => $participantattempt->id]);
+        if (!empty($kopfuebung->selfassessment) && count(array_filter($reflections,
+                static function($reflection) { return $reflection->predictedcorrect !== null; })) >= $kopfuebung->questioncount) {
+            $response['selfassessed']++;
+        }
+        if (!empty($kopfuebung->difficultyassessment) && count(array_filter($reflections,
+                static function($reflection) { return $reflection->difficulty !== null; })) >= $kopfuebung->questioncount) {
+            $response['difficultyassessed']++;
+        }
+    }
 }
 
 header('Content-Type: application/json; charset=utf-8');
