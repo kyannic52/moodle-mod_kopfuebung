@@ -26,7 +26,7 @@ $canmanagequestions = has_capability('mod/kopfuebung:managequestions', $context)
 $canviewreports = has_capability('mod/kopfuebung:viewreports', $context);
 $canviewoverview = has_capability('mod/kopfuebung:viewoverview', $coursecontext);
 $canresetattempts = has_capability('mod/kopfuebung:resetattempts', $context);
-$isteacher = $canstart || $canmanagequestions || $canviewreports || $canviewoverview || $canresetattempts;
+$isteacher = $canstart || $canmanagequestions || $canviewreports || $canresetattempts;
 $isstudent = $canattempt && !$canstart;
 $questioncount = (int) ($kopfuebung->questioncount ?: 10);
 $assignedquestioncount = $DB->count_records_select(
@@ -271,13 +271,13 @@ if ($canstart) {
 echo html_writer::end_div(); echo html_writer::end_div(); echo html_writer::end_div();
 echo html_writer::end_div();
 
-if ($isteacher) {
+if ($isteacher || ($isstudent && $canviewoverview)) {
     echo html_writer::start_div('kopfuebung-teacher-card card'); echo html_writer::start_div('card-body');
-    echo html_writer::tag('h3', get_string('viewadvancedheading', 'kopfuebung'));
-    echo html_writer::tag('p', get_string('viewadvancedtext', 'kopfuebung'), ['class' => 'text-muted']);
+    echo html_writer::tag('h3', get_string($isteacher ? 'viewadvancedheading' : 'viewstudentoverviewheading', 'kopfuebung'));
+    echo html_writer::tag('p', get_string($isteacher ? 'viewadvancedtext' : 'viewstudentoverviewtext', 'kopfuebung'), ['class' => 'text-muted']);
     echo html_writer::start_div('kopfuebung-teacher-actions');
-    if ($canmanagequestions) { echo html_writer::link(new moodle_url('/mod/kopfuebung/manage.php', ['id' => $cm->id]), get_string('managequestions', 'kopfuebung'), ['class' => 'btn btn-outline-primary']); }
-    if ($canviewreports) { echo html_writer::link(new moodle_url('/mod/kopfuebung/report.php', ['id' => $cm->id]), get_string('report', 'kopfuebung'), ['class' => 'btn btn-outline-primary']); }
+    if ($isteacher && $canmanagequestions) { echo html_writer::link(new moodle_url('/mod/kopfuebung/manage.php', ['id' => $cm->id]), get_string('managequestions', 'kopfuebung'), ['class' => 'btn btn-outline-primary']); }
+    if ($isteacher && $canviewreports) { echo html_writer::link(new moodle_url('/mod/kopfuebung/report.php', ['id' => $cm->id]), get_string('report', 'kopfuebung'), ['class' => 'btn btn-outline-primary']); }
     if ($canviewoverview) { echo html_writer::link(new moodle_url('/mod/kopfuebung/overview.php', ['id' => $course->id]), get_string('courseoverview', 'kopfuebung'), ['class' => 'btn btn-outline-primary']); }
     echo html_writer::end_div(); echo html_writer::end_div(); echo html_writer::end_div();
 }
