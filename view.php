@@ -29,6 +29,12 @@ $canresetattempts = has_capability('mod/kopfuebung:resetattempts', $context);
 $isteacher = $canstart || $canmanagequestions || $canviewreports || $canviewoverview || $canresetattempts;
 $isstudent = $canattempt && !$canstart;
 $questioncount = (int) ($kopfuebung->questioncount ?: 10);
+$assignedquestioncount = $DB->count_records_select(
+    'kopfuebung_questions',
+    'kopfuebungid = :assignedactivity AND sortorder >= 1 AND sortorder <= :assignedcount',
+    ['assignedactivity' => $kopfuebung->id, 'assignedcount' => $questioncount]
+);
+$questionscomplete = $assignedquestioncount >= $questioncount;
 $participantids = array_keys(get_enrolled_users($context, 'mod/kopfuebung:attempt', 0, 'u.id', null, 0, 0, true));
 // A teacher may inherit the attempt capability, but must not count as a participating student.
 $participantids = array_values(array_filter($participantids, static function($userid) use ($context) {
@@ -45,6 +51,7 @@ if ($participantids && ($isstudent || $isteacher)) {
     );
 }
 $readypercentage = $participantcount ? min(100, round(100 * $readycount / $participantcount)) : 0;
+$allready = $participantcount > 0 && $readycount >= $participantcount;
 $missingquestioncount = $canmanagequestions ? optional_param('missingquestions', 0, PARAM_INT) : 0;
 
 $userready = $isstudent && $DB->record_exists('kopfuebung_ready', [
@@ -85,6 +92,8 @@ $jsconfig = [
     'isTeacher' => $isteacher, 'userReady' => $userready, 'attemptFinished' => $attemptfinished,
     'remainingSeconds' => $remainingseconds, 'participantCount' => $participantcount,
     'readyTemplate' => get_string('viewreadysummary', 'kopfuebung', ['ready' => '__READY__', 'total' => '__TOTAL__']),
+    'allReadyLabel' => get_string('viewstatusallready', 'kopfuebung'),
+    'startReadyLabel' => get_string('viewstatusstartready', 'kopfuebung'),
 ];
 $PAGE->requires->js_init_code('(function(c) {
     var remaining = c.remainingSeconds;
@@ -103,6 +112,13 @@ $PAGE->requires->js_init_code('(function(c) {
             setText("kopfuebung-ready-count", d.readycount || 0);
             setText("kopfuebung-ready-summary", c.readyTemplate.replace("__READY__", d.readycount || 0).replace("__TOTAL__", c.participantCount));
             setBar("kopfuebung-ready-progress", d.readycount || 0, c.participantCount);
+            var readinessPill = document.getElementById("kopfuebung-teacher-readiness-pill");
+            if (readinessPill && !d.activitystate) {
+                var everyoneReady = c.participantCount > 0 && (d.readycount || 0) >= c.participantCount;
+                readinessPill.textContent = everyoneReady ? c.allReadyLabel : c.startReadyLabel;
+                readinessPill.classList.toggle("is-ready", everyoneReady);
+                readinessPill.classList.toggle("is-pulsing", everyoneReady);
+            }
         }
         if (c.isTeacher) {
             ["started", "finished", "selfassessed", "difficultyassessed"].forEach(function(k) { if (typeof d[k] !== "undefined") { setText("kopfuebung-" + k + "-count-label", d[k] + " / " + c.participantCount); setBar("kopfuebung-" + k + "-progress", d[k], c.participantCount); } });
@@ -173,7 +189,11 @@ if ($isstudent) {
         echo $OUTPUT->single_button(new moodle_url('/mod/kopfuebung/ready.php', ['id' => $cm->id, 'sesskey' => sesskey()]), get_string('iamready', 'kopfuebung'), 'post', ['primary' => true]);
     }
 } else if ($canstart) {
-    echo html_writer::div(get_string($kopfuebung->activitystate ? 'viewstatusrunning' : 'viewstatusstartready', 'kopfuebung'), 'kopfuebung-status-pill' . ($kopfuebung->activitystate ? ' is-running' : ''));
+    $teacherpillkey = $kopfuebung->activitystate ? 'viewstatusrunning' : ($allready ? 'viewstatusallready' : 'viewstatusstartready');
+    $teacherpillclass = $kopfuebung->activitystate ? ' is-running' : ($allready ? ' is-ready is-pulsing' : '');
+    echo html_writer::div(get_string($teacherpillkey, 'kopfuebung'), 'kopfuebung-status-pill' . $teacherpillclass, [
+        'id' => 'kopfuebung-teacher-readiness-pill',
+    ]);
     echo html_writer::tag('h3', get_string($kopfuebung->activitystate ? 'viewteacherrunning' : 'viewteacherready', 'kopfuebung'));
     if ($kopfuebung->activitystate) {
         echo html_writer::div(sprintf('%02d:%02d', floor($remainingseconds / 60), $remainingseconds % 60), 'kopfuebung-live-time', ['id' => 'kopfuebung-live-time']);
@@ -196,15 +216,57 @@ if ($isstudent) {
 }
 echo html_writer::end_div(); echo html_writer::end_div();
 
-$step = $attemptfinished ? 3 : ((!empty($kopfuebung->activitystate) || $attempt) ? 2 : 1);
 echo html_writer::start_div('kopfuebung-large-card card'); echo html_writer::start_div('card-body');
-echo html_writer::tag('h3', get_string('viewflowheading', 'kopfuebung'));
+if ($canstart) {
+    echo html_writer::div(get_string('viewteacherrole', 'kopfuebung'), 'kopfuebung-flow-role');
+    echo html_writer::tag('h3', get_string('viewteacherflowheading', 'kopfuebung'));
+} else {
+    echo html_writer::tag('h3', get_string('viewflowheading', 'kopfuebung'));
+}
 echo html_writer::start_div('kopfuebung-flow');
-for ($i = 1; $i <= 3; $i++) {
-    echo html_writer::start_div('kopfuebung-flow-step' . ($step === $i ? ' is-active' : '') . ($step > $i ? ' is-complete' : ''));
-    echo html_writer::span($i, 'kopfuebung-step-number');
-    echo html_writer::div(html_writer::tag('h4', get_string('viewstep' . $i . 'title', 'kopfuebung')) . html_writer::tag('p', get_string('viewstep' . $i . 'text', 'kopfuebung')), 'kopfuebung-step-copy');
-    echo html_writer::end_div();
+if ($canstart) {
+    $activityhasrun = !empty($kopfuebung->timestarted);
+    $teachersteps = [
+        1 => [
+            'class' => $questionscomplete ? ' is-complete' : ' is-error',
+            'title' => get_string('viewteacherstep1title', 'kopfuebung'),
+            'text' => get_string('viewteacherstep1text', 'kopfuebung'),
+            'hint' => $questionscomplete ? '' : get_string('viewteacherquestionsmissing', 'kopfuebung', [
+                'assigned' => $assignedquestioncount,
+                'total' => $questioncount,
+            ]),
+        ],
+        2 => [
+            'class' => ($allready || $activityhasrun) ? ' is-complete' : ($questionscomplete ? ' is-active' : ''),
+            'title' => get_string('viewteacherstep2title', 'kopfuebung'),
+            'text' => get_string('viewteacherstep2text', 'kopfuebung'),
+            'hint' => '',
+        ],
+        3 => [
+            'class' => $kopfuebung->activitystate ? ' is-active' : ($activityhasrun ? ' is-complete' : ($allready ? ' is-active' : '')),
+            'title' => get_string('viewteacherstep3title', 'kopfuebung'),
+            'text' => get_string('viewteacherstep3text', 'kopfuebung'),
+            'hint' => '',
+        ],
+    ];
+    foreach ($teachersteps as $number => $teacherstep) {
+        echo html_writer::start_div('kopfuebung-flow-step' . $teacherstep['class']);
+        echo html_writer::span($number, 'kopfuebung-step-number');
+        $stepcontent = html_writer::tag('h4', $teacherstep['title']) . html_writer::tag('p', $teacherstep['text']);
+        if ($teacherstep['hint'] !== '') {
+            $stepcontent .= html_writer::div($teacherstep['hint'], 'kopfuebung-step-warning');
+        }
+        echo html_writer::div($stepcontent, 'kopfuebung-step-copy');
+        echo html_writer::end_div();
+    }
+} else {
+    $step = $attemptfinished ? 3 : ((!empty($kopfuebung->activitystate) || $attempt) ? 2 : 1);
+    for ($i = 1; $i <= 3; $i++) {
+        echo html_writer::start_div('kopfuebung-flow-step' . ($step === $i ? ' is-active' : '') . ($step > $i ? ' is-complete' : ''));
+        echo html_writer::span($i, 'kopfuebung-step-number');
+        echo html_writer::div(html_writer::tag('h4', get_string('viewstep' . $i . 'title', 'kopfuebung')) . html_writer::tag('p', get_string('viewstep' . $i . 'text', 'kopfuebung')), 'kopfuebung-step-copy');
+        echo html_writer::end_div();
+    }
 }
 echo html_writer::end_div(); echo html_writer::end_div(); echo html_writer::end_div();
 echo html_writer::end_div();
