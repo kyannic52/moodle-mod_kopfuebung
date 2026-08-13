@@ -30,6 +30,7 @@ function kopfuebung_add_instance($data, $mform = null) {
         : 10;
     $data->selfassessment = empty($data->selfassessment) ? 0 : 1;
     $data->difficultyassessment = empty($data->difficultyassessment) ? 0 : 1;
+    $data->allowreadywithdraw = empty($data->allowreadywithdraw) ? 0 : 1;
 
     return $DB->insert_record('kopfuebung', $data);
 }
@@ -49,6 +50,7 @@ function kopfuebung_update_instance($data, $mform = null) {
         : 10;
     $data->selfassessment = empty($data->selfassessment) ? 0 : 1;
     $data->difficultyassessment = empty($data->difficultyassessment) ? 0 : 1;
+    $data->allowreadywithdraw = empty($data->allowreadywithdraw) ? 0 : 1;
 
     return $DB->update_record('kopfuebung', $data);
 }

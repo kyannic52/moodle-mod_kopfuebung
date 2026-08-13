@@ -47,10 +47,15 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
         $mform->setDefault('difficultyassessment', 0);
         $mform->addHelpButton('difficultyassessment', 'difficultyassessment', 'kopfuebung');
 
+        $mform->addElement('advcheckbox', 'allowreadywithdraw', get_string('allowreadywithdraw', 'kopfuebung'));
+        $mform->setDefault('allowreadywithdraw', 1);
+        $mform->addHelpButton('allowreadywithdraw', 'allowreadywithdraw', 'kopfuebung');
+
         $mform->hideIf('timelimit', 'activitytype', 'eq', 'overview');
         $mform->hideIf('questioncount', 'activitytype', 'eq', 'overview');
         $mform->hideIf('selfassessment', 'activitytype', 'eq', 'overview');
         $mform->hideIf('difficultyassessment', 'activitytype', 'eq', 'overview');
+        $mform->hideIf('allowreadywithdraw', 'activitytype', 'eq', 'overview');
 
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();

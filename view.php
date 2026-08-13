@@ -182,6 +182,17 @@ if ($isstudent) {
         echo html_writer::tag('p', get_string('viewreadysummary', 'kopfuebung', ['ready' => $readycount, 'total' => $participantcount]), ['id' => 'kopfuebung-ready-summary']);
         echo html_writer::div(html_writer::div('', 'kopfuebung-progress-bar bg-success', ['id' => 'kopfuebung-ready-progress', 'style' => 'width:' . $readypercentage . '%']), 'kopfuebung-progress');
         echo html_writer::div(get_string('viewwaitnotice', 'kopfuebung'), 'alert alert-success mb-0');
+        if (!empty($kopfuebung->allowreadywithdraw)) {
+            echo html_writer::div($OUTPUT->single_button(
+                new moodle_url('/mod/kopfuebung/ready.php', [
+                    'id' => $cm->id,
+                    'action' => 'withdraw',
+                    'sesskey' => sesskey(),
+                ]),
+                get_string('withdrawreadiness', 'kopfuebung'),
+                'post'
+            ), 'kopfuebung-withdraw-ready');
+        }
     } else {
         echo html_writer::div(get_string('viewstatuswaiting', 'kopfuebung'), 'kopfuebung-status-pill');
         echo html_writer::tag('h3', get_string('viewreadyheading', 'kopfuebung'));
@@ -228,7 +239,7 @@ if ($canstart) {
     $activityhasrun = !empty($kopfuebung->timestarted);
     $teachersteps = [
         1 => [
-            'class' => $questionscomplete ? ' is-complete' : ' is-error',
+            'class' => $questionscomplete ? ' is-complete' : ' is-warning',
             'title' => get_string('viewteacherstep1title', 'kopfuebung'),
             'text' => get_string('viewteacherstep1text', 'kopfuebung'),
             'hint' => $questionscomplete ? '' : get_string('viewteacherquestionsmissing', 'kopfuebung', [

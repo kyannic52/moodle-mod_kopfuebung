@@ -269,5 +269,17 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080500, 'kopfuebung');
     }
 
+    if ($oldversion < 2026081305) {
+        $table = new xmldb_table('kopfuebung');
+        $field = new xmldb_field(
+            'allowreadywithdraw', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1',
+            'difficultyassessment'
+        );
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026081305, 'kopfuebung');
+    }
+
     return true;
 }
