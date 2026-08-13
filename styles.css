@@ -331,7 +331,7 @@
 }
 
 .kopfuebung-fact {
-    background: #f8f9fa;
+    background: #f3f5f7 !important;
     border: 1px solid rgba(0, 0, 0, .08);
     border-radius: .9rem;
     padding: 1.15rem;
@@ -369,6 +369,48 @@
 .kopfuebung-large-card .card-body {
     min-height: 22rem;
     padding: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.kopfuebung-main-cards > .kopfuebung-large-card:first-child .card-body {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.kopfuebung-status-pill {
+    align-items: center;
+    background: #f1f3f5;
+    border-radius: 999px;
+    color: #68727d;
+    display: inline-flex;
+    font-size: .76rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    margin-bottom: 1rem;
+    padding: .45rem .8rem;
+    text-transform: uppercase;
+}
+
+.kopfuebung-status-pill::before {
+    background: currentColor;
+    border-radius: 50%;
+    content: "";
+    height: .5rem;
+    margin-right: .45rem;
+    width: .5rem;
+}
+
+.kopfuebung-status-pill.is-ready,
+.kopfuebung-status-pill.is-finished {
+    background: rgba(40, 167, 69, .12);
+    color: #287d3c;
+}
+
+.kopfuebung-status-pill.is-running {
+    background: rgba(15, 108, 191, .12);
+    color: #0f6cbf;
 }
 
 .kopfuebung-live-time {

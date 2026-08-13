@@ -27,17 +27,31 @@ $canviewreports = has_capability('mod/kopfuebung:viewreports', $context);
 $canviewoverview = has_capability('mod/kopfuebung:viewoverview', $coursecontext);
 $canresetattempts = has_capability('mod/kopfuebung:resetattempts', $context);
 $isteacher = $canstart || $canmanagequestions || $canviewreports || $canviewoverview || $canresetattempts;
+$isstudent = $canattempt && !$canstart;
 $questioncount = (int) ($kopfuebung->questioncount ?: 10);
-$participantcount = count_enrolled_users($context, 'mod/kopfuebung:attempt', 0, true);
-$readycount = ($canattempt || $isteacher) ? $DB->count_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]) : 0;
+$participantids = array_keys(get_enrolled_users($context, 'mod/kopfuebung:attempt', 0, 'u.id', null, 0, 0, true));
+// A teacher may inherit the attempt capability, but must not count as a participating student.
+$participantids = array_values(array_filter($participantids, static function($userid) use ($context) {
+    return !has_capability('mod/kopfuebung:startactivity', $context, $userid);
+}));
+$participantcount = count($participantids);
+$readycount = 0;
+if ($participantids && ($isstudent || $isteacher)) {
+    [$readyinsql, $readyparams] = $DB->get_in_or_equal($participantids, SQL_PARAMS_NAMED, 'readyuser');
+    $readycount = $DB->count_records_select(
+        'kopfuebung_ready',
+        'kopfuebungid = :readyactivity AND userid ' . $readyinsql,
+        ['readyactivity' => $kopfuebung->id] + $readyparams
+    );
+}
 $readypercentage = $participantcount ? min(100, round(100 * $readycount / $participantcount)) : 0;
 $missingquestioncount = $canmanagequestions ? optional_param('missingquestions', 0, PARAM_INT) : 0;
 
-$userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
+$userready = $isstudent && $DB->record_exists('kopfuebung_ready', [
     'kopfuebungid' => $kopfuebung->id, 'userid' => $USER->id,
 ]);
-$attempt = $canattempt ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
-$finishedattempt = $canattempt ? kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id) : null;
+$attempt = $isstudent ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
+$finishedattempt = $isstudent ? kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id) : null;
 $attemptfinished = (bool) $finishedattempt;
 if ($attemptfinished && kopfuebung_reflection_pending($kopfuebung, $finishedattempt)) {
     redirect(new moodle_url('/mod/kopfuebung/reflection.php', ['id' => $cm->id]));
@@ -49,20 +63,12 @@ if ($attemptfinished) {
 $remainingseconds = (int) $kopfuebung->timelimit;
 if (!empty($kopfuebung->activitystate)) {
     $remainingseconds = max(0, (int) $kopfuebung->timestarted + (int) $kopfuebung->timelimit - time());
-    if ($canattempt && $attempt && $attempt->status === 'inprogress') {
+    if ($isstudent && $attempt && $attempt->status === 'inprogress') {
         $remainingseconds = max(0, (int) $attempt->timestarted + (int) $kopfuebung->timelimit - time());
     }
 }
 
-if (!empty($kopfuebung->selfassessment) && !empty($kopfuebung->difficultyassessment)) {
-    $mode = get_string('viewmodeboth', 'kopfuebung');
-} else if (!empty($kopfuebung->selfassessment)) {
-    $mode = get_string('viewmodeselfassessment', 'kopfuebung');
-} else if (!empty($kopfuebung->difficultyassessment)) {
-    $mode = get_string('viewmodedifficulty', 'kopfuebung');
-} else {
-    $mode = get_string('viewmodeexercise', 'kopfuebung');
-}
+$hasfeedback = !empty($kopfuebung->selfassessment) || !empty($kopfuebung->difficultyassessment);
 
 $PAGE->set_url('/mod/kopfuebung/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($kopfuebung->name));
@@ -75,7 +81,7 @@ $statusurl = new moodle_url('/mod/kopfuebung/status.php', ['id' => $cm->id]);
 $attempturl = new moodle_url('/mod/kopfuebung/attempt.php', ['id' => $cm->id]);
 $jsconfig = [
     'statusUrl' => $statusurl->out(false), 'attemptUrl' => $attempturl->out(false),
-    'activityState' => (bool) $kopfuebung->activitystate, 'canAttempt' => $canattempt,
+    'activityState' => (bool) $kopfuebung->activitystate, 'canAttempt' => $isstudent,
     'isTeacher' => $isteacher, 'userReady' => $userready, 'attemptFinished' => $attemptfinished,
     'remainingSeconds' => $remainingseconds, 'participantCount' => $participantcount,
     'readyTemplate' => get_string('viewreadysummary', 'kopfuebung', ['ready' => '__READY__', 'total' => '__TOTAL__']),
@@ -102,6 +108,7 @@ $PAGE->requires->js_init_code('(function(c) {
             ["started", "finished", "selfassessed", "difficultyassessed"].forEach(function(k) { if (typeof d[k] !== "undefined") { setText("kopfuebung-" + k + "-count-label", d[k] + " / " + c.participantCount); setBar("kopfuebung-" + k + "-progress", d[k], c.participantCount); } });
         }
     }).catch(function() {}); };
+    poll();
     window.setInterval(poll, 2000);
 })(' . json_encode($jsconfig) . ');');
 
@@ -119,7 +126,7 @@ echo html_writer::start_div('kopfuebung-facts');
 foreach ([
     [$questioncount, get_string('viewquestions', 'kopfuebung')],
     [format_time($kopfuebung->timelimit), get_string('viewworkingtime', 'kopfuebung')],
-    [$mode, get_string('viewmode', 'kopfuebung')],
+    [get_string('viewmodeexercise', 'kopfuebung'), get_string($hasfeedback ? 'viewwithfeedback' : 'viewwithoutfeedback', 'kopfuebung')],
 ] as [$value, $label]) {
     echo html_writer::div(html_writer::span($value, 'kopfuebung-fact-value') . html_writer::span($label, 'kopfuebung-fact-label'), 'kopfuebung-fact card');
 }
@@ -139,33 +146,39 @@ if ($missingquestioncount > 0) {
 
 echo html_writer::start_div('kopfuebung-main-cards');
 echo html_writer::start_div('kopfuebung-large-card card'); echo html_writer::start_div('card-body');
-if ($canattempt && !$canstart) {
+if ($isstudent) {
     if ($attemptfinished) {
+        echo html_writer::div(get_string('viewstatusdone', 'kopfuebung'), 'kopfuebung-status-pill is-finished');
         echo html_writer::tag('h3', get_string('viewdoneheading', 'kopfuebung'));
         echo html_writer::tag('p', get_string('viewdonetext', 'kopfuebung'));
         if (!$kopfuebung->activitystate) { echo $OUTPUT->single_button(new moodle_url('/mod/kopfuebung/review.php', ['id' => $cm->id]), get_string('reviewattempt', 'kopfuebung'), 'get', ['primary' => true]); }
         else { echo html_writer::tag('p', get_string('resultsavailableafteractivity', 'kopfuebung'), ['class' => 'text-muted']); }
     } else if ($kopfuebung->activitystate) {
+        echo html_writer::div(get_string('viewstatusrunning', 'kopfuebung'), 'kopfuebung-status-pill is-running');
         echo html_writer::tag('h3', get_string('viewrunningheading', 'kopfuebung'));
         echo html_writer::div(sprintf('%02d:%02d', floor($remainingseconds / 60), $remainingseconds % 60), 'kopfuebung-live-time', ['id' => 'kopfuebung-live-time']);
         echo html_writer::tag('p', get_string('viewrunningtext', 'kopfuebung'));
         echo $OUTPUT->single_button($attempturl, get_string($attempt ? 'continueattempt' : 'attemptactivity', 'kopfuebung'), 'get', ['primary' => true]);
     } else if ($userready) {
+        echo html_writer::div(get_string('viewstatusready', 'kopfuebung'), 'kopfuebung-status-pill is-ready');
         echo html_writer::tag('h3', get_string('viewwaitingheading', 'kopfuebung'));
         echo html_writer::tag('p', get_string('viewwaitingtext', 'kopfuebung'));
         echo html_writer::tag('p', get_string('viewreadysummary', 'kopfuebung', ['ready' => $readycount, 'total' => $participantcount]), ['id' => 'kopfuebung-ready-summary']);
         echo html_writer::div(html_writer::div('', 'kopfuebung-progress-bar bg-success', ['id' => 'kopfuebung-ready-progress', 'style' => 'width:' . $readypercentage . '%']), 'kopfuebung-progress');
         echo html_writer::div(get_string('viewwaitnotice', 'kopfuebung'), 'alert alert-success mb-0');
     } else {
+        echo html_writer::div(get_string('viewstatuswaiting', 'kopfuebung'), 'kopfuebung-status-pill');
         echo html_writer::tag('h3', get_string('viewreadyheading', 'kopfuebung'));
         echo html_writer::tag('p', get_string('viewreadytext', 'kopfuebung'));
         echo $OUTPUT->single_button(new moodle_url('/mod/kopfuebung/ready.php', ['id' => $cm->id, 'sesskey' => sesskey()]), get_string('iamready', 'kopfuebung'), 'post', ['primary' => true]);
     }
 } else if ($canstart) {
+    echo html_writer::div(get_string($kopfuebung->activitystate ? 'viewstatusrunning' : 'viewstatusstartready', 'kopfuebung'), 'kopfuebung-status-pill' . ($kopfuebung->activitystate ? ' is-running' : ''));
     echo html_writer::tag('h3', get_string($kopfuebung->activitystate ? 'viewteacherrunning' : 'viewteacherready', 'kopfuebung'));
     if ($kopfuebung->activitystate) {
         echo html_writer::div(sprintf('%02d:%02d', floor($remainingseconds / 60), $remainingseconds % 60), 'kopfuebung-live-time', ['id' => 'kopfuebung-live-time']);
     } else {
+        echo html_writer::tag('p', get_string('viewteacherreadytext', 'kopfuebung'), ['class' => 'text-muted']);
         echo html_writer::tag('p', get_string('viewreadysummary', 'kopfuebung', ['ready' => $readycount, 'total' => $participantcount]), ['id' => 'kopfuebung-ready-summary']);
         echo html_writer::div(html_writer::div('', 'kopfuebung-progress-bar bg-success', ['id' => 'kopfuebung-ready-progress', 'style' => 'width:' . $readypercentage . '%']), 'kopfuebung-progress');
     }

@@ -19,12 +19,13 @@ kopfuebung_close_expired_activity($kopfuebung);
 
 $canattempt = has_capability('mod/kopfuebung:attempt', $context);
 $canstart = has_capability('mod/kopfuebung:startactivity', $context);
-$userready = $canattempt && $DB->record_exists('kopfuebung_ready', [
+$isstudent = $canattempt && !$canstart;
+$userready = $isstudent && $DB->record_exists('kopfuebung_ready', [
     'kopfuebungid' => $kopfuebung->id,
     'userid' => $USER->id,
 ]);
-$attempt = $canattempt ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
-$finishedattempt = $canattempt
+$attempt = $isstudent ? kopfuebung_get_current_attempt($kopfuebung, $USER->id) : null;
+$finishedattempt = $isstudent
     ? kopfuebung_get_latest_finished_attempt($kopfuebung->id, $USER->id)
     : null;
 if ($finishedattempt) {
@@ -32,9 +33,9 @@ if ($finishedattempt) {
 }
 $remainingseconds = (int) $kopfuebung->timelimit;
 
-if ($canattempt && $kopfuebung->activitystate) {
+if ($kopfuebung->activitystate) {
     $remainingseconds = max(0, $kopfuebung->timestarted + $kopfuebung->timelimit - time());
-    if ($attempt && $attempt->status === 'inprogress') {
+    if ($isstudent && $attempt && $attempt->status === 'inprogress') {
         $remainingseconds = max(0, $attempt->timestarted + $kopfuebung->timelimit - time());
     }
 }
@@ -45,12 +46,22 @@ $response = [
     'attemptfinished' => (bool) $finishedattempt,
     'remainingseconds' => $remainingseconds,
 ];
-if ($canattempt || $canstart) {
-    $response['readycount'] = $DB->count_records('kopfuebung_ready', ['kopfuebungid' => $kopfuebung->id]);
+$participantids = array_keys(get_enrolled_users($context, 'mod/kopfuebung:attempt', 0, 'u.id', null, 0, 0, true));
+$participantids = array_values(array_filter($participantids, static function($userid) use ($context) {
+    return !has_capability('mod/kopfuebung:startactivity', $context, $userid);
+}));
+if ($isstudent || $canstart) {
+    $response['readycount'] = 0;
+    if ($participantids) {
+        [$readyinsql, $readyparams] = $DB->get_in_or_equal($participantids, SQL_PARAMS_NAMED, 'readyuser');
+        $response['readycount'] = $DB->count_records_select(
+            'kopfuebung_ready',
+            'kopfuebungid = :readyactivity AND userid ' . $readyinsql,
+            ['readyactivity' => $kopfuebung->id] + $readyparams
+        );
+    }
 }
 if ($canstart) {
-
-    $participantids = array_keys(get_enrolled_users($context, 'mod/kopfuebung:attempt', 0, 'u.id'));
     $latestattempts = [];
     if ($participantids) {
         [$insql, $inparams] = $DB->get_in_or_equal($participantids, SQL_PARAMS_NAMED, 'participant');
