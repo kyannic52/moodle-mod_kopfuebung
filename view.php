@@ -68,6 +68,8 @@ $PAGE->set_url('/mod/kopfuebung/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($kopfuebung->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
+// The activity description is rendered in the custom hero below.
+$PAGE->activityheader->set_description('');
 
 $statusurl = new moodle_url('/mod/kopfuebung/status.php', ['id' => $cm->id]);
 $attempturl = new moodle_url('/mod/kopfuebung/attempt.php', ['id' => $cm->id]);
