@@ -12,6 +12,11 @@ mod/kopfuebung
 
 Then visit **Site administration > Notifications** or run Moodle's CLI upgrade command.
 
+## User Guide
+
+For a visual introduction to using the plugin and its typical workflow, see the
+[Kopfuebung plugin presentation](Kopfuebung_Plugin_Praesentation.pdf).
+
 ## Typical Teacher Workflow
 
 ### 1. Prepare questions
