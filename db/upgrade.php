@@ -281,5 +281,33 @@ function xmldb_kopfuebung_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026081305, 'kopfuebung');
     }
 
+    if ($oldversion < 2026090200) {
+        $activitytable = new xmldb_table('kopfuebung');
+        $packagefield = new xmldb_field(
+            'huepackageid', XMLDB_TYPE_CHAR, '36', null, null, null, null, 'allowreadywithdraw'
+        );
+        if (!$dbman->field_exists($activitytable, $packagefield)) {
+            $dbman->add_field($activitytable, $packagefield);
+        }
+
+        $table = new xmldb_table('kopfuebung_hue_questions');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('hueuuid', XMLDB_TYPE_CHAR, '36', null, XMLDB_NOTNULL);
+        $table->add_field('questionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('fingerprint', XMLDB_TYPE_CHAR, '64', null, XMLDB_NOTNULL);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('coursefk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        $table->add_index('course_uuid', XMLDB_INDEX_UNIQUE, ['courseid', 'hueuuid']);
+        $table->add_index('questionid', XMLDB_INDEX_NOTUNIQUE, ['questionid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2026090200, 'kopfuebung');
+    }
+
     return true;
 }

@@ -14,7 +14,13 @@ function kopfuebung_supports($feature) {
 }
 
 function kopfuebung_add_instance($data, $mform = null) {
-    global $DB;
+    global $DB, $SESSION, $USER;
+
+    $huedraftid = (int) ($data->huefile ?? 0);
+    $huefiles = $huedraftid ? get_file_storage()->get_area_files(
+        context_user::instance($USER->id)->id, 'user', 'draft', $huedraftid, 'id', false
+    ) : [];
+    unset($data->huefile, $data->hueapply);
 
     $data->timecreated = time();
     $data->timemodified = $data->timecreated;
@@ -31,12 +37,29 @@ function kopfuebung_add_instance($data, $mform = null) {
     $data->selfassessment = empty($data->selfassessment) ? 0 : 1;
     $data->difficultyassessment = empty($data->difficultyassessment) ? 0 : 1;
     $data->allowreadywithdraw = empty($data->allowreadywithdraw) ? 0 : 1;
+    if ($huefiles && trim((string) ($data->name ?? '')) === '') {
+        $data->name = get_string('huependingactivityname', 'kopfuebung');
+    }
 
-    return $DB->insert_record('kopfuebung', $data);
+    $id = $DB->insert_record('kopfuebung', $data);
+    if ($huefiles) {
+        $SESSION->kopfuebung_hue_pending = [
+            'activityid' => $id,
+            'courseid' => (int) $data->course,
+            'draftid' => $huedraftid,
+        ];
+    }
+    return $id;
 }
 
 function kopfuebung_update_instance($data, $mform = null) {
-    global $DB;
+    global $DB, $SESSION, $USER;
+
+    $huedraftid = (int) ($data->huefile ?? 0);
+    $huefiles = $huedraftid ? get_file_storage()->get_area_files(
+        context_user::instance($USER->id)->id, 'user', 'draft', $huedraftid, 'id', false
+    ) : [];
+    unset($data->huefile, $data->hueapply);
 
     $data->id = $data->instance;
     $data->timemodified = time();
@@ -52,7 +75,15 @@ function kopfuebung_update_instance($data, $mform = null) {
     $data->difficultyassessment = empty($data->difficultyassessment) ? 0 : 1;
     $data->allowreadywithdraw = empty($data->allowreadywithdraw) ? 0 : 1;
 
-    return $DB->update_record('kopfuebung', $data);
+    $result = $DB->update_record('kopfuebung', $data);
+    if ($huefiles) {
+        $SESSION->kopfuebung_hue_pending = [
+            'activityid' => (int) $data->id,
+            'courseid' => (int) $data->course,
+            'draftid' => $huedraftid,
+        ];
+    }
+    return $result;
 }
 
 function kopfuebung_delete_instance($id) {

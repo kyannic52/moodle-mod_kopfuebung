@@ -29,6 +29,12 @@ guidance are available in:
 An unpacked reference package is provided in `examples/hue/minimal/`, and the
 manifest can be validated against `schema/hue-manifest.schema.json`.
 
+Teachers can import and export HUE packages from an exercise activity. Import
+provides question previews, duplicate handling, destination-category selection,
+and drag-and-drop ordering before applying the questions and activity settings.
+Activities that already contain attempts remain exportable but cannot be
+replaced by a HUE import, which protects existing attempt and reflection data.
+
 ## Typical Teacher Workflow
 
 ### 1. Prepare questions

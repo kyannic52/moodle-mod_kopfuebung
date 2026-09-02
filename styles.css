@@ -25,6 +25,22 @@
     min-width: 12rem;
 }
 
+.kopfuebung-hue-table .hue-question-row {
+    cursor: move;
+}
+
+.kopfuebung-hue-table .hue-question-row.is-dragging {
+    opacity: .45;
+}
+
+.kopfuebung-hue-table .hue-drag-handle {
+    color: #5b6673;
+}
+
+#hue-preview-modal.show {
+    background: rgba(0, 0, 0, .45);
+}
+
 .kopfuebung-overview th.kopfuebung-grid-start,
 .kopfuebung-overview td.kopfuebung-grid-start {
     border-left: 4px solid #6c757d !important;
