@@ -17,6 +17,18 @@ Then visit **Site administration > Notifications** or run Moodle's CLI upgrade c
 For a visual introduction to using the plugin and its typical workflow, see the
 [Kopfuebung plugin presentation](Kopfuebung_Plugin_Praesentation.pdf).
 
+## HUE Exchange Format
+
+HUE (Hausuebung Exchange Format) is the package format planned for exchanging
+complete Kopfuebung activities. The version 1.0 specification and authoring
+guidance are available in:
+
+- [HUE format specification](docs/hue-format.md)
+- [HUE authoring guide](docs/hue-authoring.md)
+
+An unpacked reference package is provided in `examples/hue/minimal/`, and the
+manifest can be validated against `schema/hue-manifest.schema.json`.
+
 ## Typical Teacher Workflow
 
 ### 1. Prepare questions

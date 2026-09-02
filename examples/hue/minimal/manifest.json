@@ -1,0 +1,73 @@
+{
+  "format": "HUE",
+  "format_version": "1.0",
+  "package_id": "7cc98c74-16c1-4f1c-8f2b-0e7918d41083",
+  "language": "de",
+  "created_at": "2026-09-02T10:00:00Z",
+  "generator": {
+    "name": "HUE reference example",
+    "version": "1.0"
+  },
+  "activity": {
+    "name": "Grundrechenarten",
+    "description": {
+      "format": "html",
+      "text": "<p>Eine kurze Kopfübung zu den Grundrechenarten.</p>"
+    },
+    "time_limit_seconds": 300,
+    "question_count": 8,
+    "self_assessment": true,
+    "difficulty_assessment": true,
+    "allow_ready_withdrawal": true
+  },
+  "questions": [
+    {
+      "id": "5fc787cc-52bb-46d3-a55d-a6d2bcaed2d1",
+      "position": 1,
+      "xml_index": 1,
+      "fingerprint": "0db2411bedbd9fa3d849d74ee1f975e503d15c8969f8254b1daccec6570369f7"
+    },
+    {
+      "id": "9fc6db86-c868-41d3-a19b-cfd78d72504f",
+      "position": 2,
+      "xml_index": 2,
+      "fingerprint": "99005204855cbb0dfa7bf7a34e2376daf287a7072a701a484915e66e18a9fee3"
+    },
+    {
+      "id": "a0d5d68a-9922-4b71-94b1-12dcb4714626",
+      "position": 3,
+      "xml_index": 3,
+      "fingerprint": "3101ecec4a760125f46cf7bd59f0f43a7116352603503e83e6bf40b91c44c298"
+    },
+    {
+      "id": "77d1752c-0aaa-4f46-8181-87d140b9c7ed",
+      "position": 4,
+      "xml_index": 4,
+      "fingerprint": "1386c96930f06309ce50dd16e8ba28f6448bc7030569afdfa407cc4617de851e"
+    },
+    {
+      "id": "31665a55-172c-4291-a2d8-9411fc48c2a8",
+      "position": 5,
+      "xml_index": 5,
+      "fingerprint": "4e308e844877734e90511fa61b0184b02164a744a648ba62e0e934fead9f47a6"
+    },
+    {
+      "id": "63847d61-9fe9-4407-97f3-7ad6f4469b34",
+      "position": 6,
+      "xml_index": 6,
+      "fingerprint": "e74686ba838935d5bedd37feb2b4e4c800e07dc80c6f1e9b20829e4313d6307d"
+    },
+    {
+      "id": "816cedbb-eb1e-49d1-9a61-4dc745b3aeda",
+      "position": 7,
+      "xml_index": 7,
+      "fingerprint": "26887d7e169ad9ac886578b7663a719981276742b4d5adc239e2e38855e4c223"
+    },
+    {
+      "id": "dfaa0d3c-7041-4535-a68c-b0e7fcf3113f",
+      "position": 8,
+      "xml_index": 8,
+      "fingerprint": "beba505c7c795044982e36a9da3f10bb3ba495971f4f0107bd689c5718272128"
+    }
+  ]
+}

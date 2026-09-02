@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+  <question type="shortanswer">
+    <name><text>HUE example 1</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 7 + 8&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>15</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+  <question type="shortanswer">
+    <name><text>HUE example 2</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 14 - 6&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>8</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+  <question type="shortanswer">
+    <name><text>HUE example 3</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 6 · 7&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>42</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+  <question type="shortanswer">
+    <name><text>HUE example 4</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 56 : 8&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>7</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+  <question type="shortanswer">
+    <name><text>HUE example 5</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 9 + 16&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>25</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+  <question type="shortanswer">
+    <name><text>HUE example 6</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 31 - 12&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>19</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+  <question type="shortanswer">
+    <name><text>HUE example 7</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 12 · 4&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>48</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+  <question type="shortanswer">
+    <name><text>HUE example 8</text></name>
+    <questiontext format="html"><text>&lt;p&gt;Berechne: 81 : 9&lt;/p&gt;</text></questiontext>
+    <generalfeedback format="html"><text></text></generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade><penalty>0.3333333</penalty><hidden>0</hidden><usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>9</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+</quiz>
