@@ -179,13 +179,15 @@ class service {
             throw new \moodle_exception('hueexportincomplete', 'kopfuebung');
         }
         $questionids = array_map(static function($record): int { return (int) $record->questionid; }, $selected);
-        $questionrecords = $DB->get_records_list('question', 'id', $questionids);
         $questions = [];
         foreach ($questionids as $questionid) {
-            if (!isset($questionrecords[$questionid])) {
+            try {
+                $question = \question_bank::load_question_data($questionid);
+            } catch (\dml_missing_record_exception $exception) {
                 throw new \moodle_exception('hueexportmissingquestion', 'kopfuebung');
             }
-            $questions[] = $questionrecords[$questionid];
+            $question->export_process = true;
+            $questions[] = $question;
         }
         $contexts = array_map(static function(int $contextid) {
             return \context::instance_by_id($contextid);
@@ -236,7 +238,7 @@ class service {
         $manifest = [
             'format' => 'HUE', 'format_version' => '1.0', 'package_id' => $activity->huepackageid,
             'language' => str_replace('_', '-', current_language()), 'created_at' => gmdate('c'),
-            'generator' => ['name' => 'mod_kopfuebung', 'version' => '0.18.0'],
+            'generator' => ['name' => 'mod_kopfuebung', 'version' => '0.18.1'],
             'activity' => [
                 'name' => $activity->name,
                 'description' => ['format' => $formatmap[(int) $activity->introformat] ?? 'html',
