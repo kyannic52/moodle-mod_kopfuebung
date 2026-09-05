@@ -108,10 +108,10 @@ class mod_kopfuebung_mod_form extends moodleform_mod {
                 \mod_kopfuebung\local\hue\service::apply_activity_settings($package, $imported);
                 foreach (['name', 'timelimit', 'questioncount', 'selfassessment',
                         'difficultyassessment', 'allowreadywithdraw'] as $field) {
-                    $this->_form->setValue($field, $imported->{$field});
+                    $this->_form->getElement($field)->setValue($imported->{$field});
                     unset($errors[$field]);
                 }
-                $this->_form->setValue('introeditor', [
+                $this->_form->getElement('introeditor')->setValue([
                     'text' => $imported->intro,
                     'format' => $imported->introformat,
                     'itemid' => 0,

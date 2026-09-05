@@ -242,7 +242,7 @@ class service {
         $manifest = [
             'format' => 'HUE', 'format_version' => '1.0', 'package_id' => $activity->huepackageid,
             'language' => str_replace('_', '-', current_language()), 'created_at' => gmdate('c'),
-            'generator' => ['name' => 'mod_kopfuebung', 'version' => '0.18.3'],
+            'generator' => ['name' => 'mod_kopfuebung', 'version' => '0.18.4'],
             'activity' => [
                 'name' => $activity->name,
                 'description' => ['format' => $formatmap[(int) $activity->introformat] ?? 'html',
