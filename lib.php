@@ -22,6 +22,11 @@ function kopfuebung_add_instance($data, $mform = null) {
     ) : [];
     unset($data->huefile, $data->hueapply);
 
+    if ($huefiles) {
+        $package = \mod_kopfuebung\local\hue\service::read_stored_file(reset($huefiles));
+        \mod_kopfuebung\local\hue\service::apply_activity_settings($package, $data);
+    }
+
     $data->timecreated = time();
     $data->timemodified = $data->timecreated;
     $data->activitystate = 0;
@@ -37,10 +42,6 @@ function kopfuebung_add_instance($data, $mform = null) {
     $data->selfassessment = empty($data->selfassessment) ? 0 : 1;
     $data->difficultyassessment = empty($data->difficultyassessment) ? 0 : 1;
     $data->allowreadywithdraw = empty($data->allowreadywithdraw) ? 0 : 1;
-    if ($huefiles && trim((string) ($data->name ?? '')) === '') {
-        $data->name = get_string('huependingactivityname', 'kopfuebung');
-    }
-
     $id = $DB->insert_record('kopfuebung', $data);
     if ($huefiles) {
         $SESSION->kopfuebung_hue_pending = [
@@ -60,6 +61,11 @@ function kopfuebung_update_instance($data, $mform = null) {
         context_user::instance($USER->id)->id, 'user', 'draft', $huedraftid, 'id', false
     ) : [];
     unset($data->huefile, $data->hueapply);
+
+    if ($huefiles) {
+        $package = \mod_kopfuebung\local\hue\service::read_stored_file(reset($huefiles));
+        \mod_kopfuebung\local\hue\service::apply_activity_settings($package, $data);
+    }
 
     $data->id = $data->instance;
     $data->timemodified = time();

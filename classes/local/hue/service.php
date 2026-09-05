@@ -7,6 +7,22 @@ defined('MOODLE_INTERNAL') || die();
 
 /** HUE import and export operations using Moodle's XML question format. */
 class service {
+    /** Apply the activity settings contained in a validated HUE package. */
+    public static function apply_activity_settings(package $package, \stdClass $activity): void {
+        $settings = $package->get_manifest()['activity'];
+        $formatmap = ['html' => FORMAT_HTML, 'moodle' => FORMAT_MOODLE,
+            'plain' => FORMAT_PLAIN, 'markdown' => FORMAT_MARKDOWN];
+        $activity->name = clean_param($settings['name'], PARAM_TEXT);
+        $activity->introformat = $formatmap[$settings['description']['format']];
+        $activity->intro = clean_text($settings['description']['text'], $activity->introformat);
+        $activity->timelimit = (int) $settings['time_limit_seconds'];
+        $activity->questioncount = (int) $settings['question_count'];
+        $activity->selfassessment = $settings['self_assessment'] ? 1 : 0;
+        $activity->difficultyassessment = $settings['difficulty_assessment'] ? 1 : 0;
+        $activity->allowreadywithdraw = $settings['allow_ready_withdrawal'] ? 1 : 0;
+        $activity->huepackageid = $package->get_manifest()['package_id'];
+    }
+
     public static function get_draft_file(int $draftid): \stored_file {
         global $USER;
         $files = get_file_storage()->get_area_files(
@@ -122,19 +138,7 @@ class service {
             }
         }
 
-        $manifest = $package->get_manifest();
-        $settings = $manifest['activity'];
-        $formatmap = ['html' => FORMAT_HTML, 'moodle' => FORMAT_MOODLE,
-            'plain' => FORMAT_PLAIN, 'markdown' => FORMAT_MARKDOWN];
-        $activity->name = clean_param($settings['name'], PARAM_TEXT);
-        $activity->introformat = $formatmap[$settings['description']['format']];
-        $activity->intro = clean_text($settings['description']['text'], $activity->introformat);
-        $activity->timelimit = (int) $settings['time_limit_seconds'];
-        $activity->questioncount = (int) $settings['question_count'];
-        $activity->selfassessment = $settings['self_assessment'] ? 1 : 0;
-        $activity->difficultyassessment = $settings['difficulty_assessment'] ? 1 : 0;
-        $activity->allowreadywithdraw = $settings['allow_ready_withdrawal'] ? 1 : 0;
-        $activity->huepackageid = $manifest['package_id'];
+        self::apply_activity_settings($package, $activity);
         $activity->timemodified = time();
         $assignments = [];
         foreach ($ordereduuids as $offset => $uuid) {
@@ -238,7 +242,7 @@ class service {
         $manifest = [
             'format' => 'HUE', 'format_version' => '1.0', 'package_id' => $activity->huepackageid,
             'language' => str_replace('_', '-', current_language()), 'created_at' => gmdate('c'),
-            'generator' => ['name' => 'mod_kopfuebung', 'version' => '0.18.1'],
+            'generator' => ['name' => 'mod_kopfuebung', 'version' => '0.18.2'],
             'activity' => [
                 'name' => $activity->name,
                 'description' => ['format' => $formatmap[(int) $activity->introformat] ?? 'html',

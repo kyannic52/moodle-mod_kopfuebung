@@ -152,7 +152,7 @@ function kopfuebung_get_question_categories(stdClass $course): array {
         "contextid $contextsql",
         $params,
         'name ASC',
-        'id, name'
+        'id, name, contextid'
     );
 }
 
