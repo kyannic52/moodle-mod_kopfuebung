@@ -68,6 +68,7 @@ function kopfuebung_get_course_question_context_ids(stdClass $course): array {
             AND cm.course = :courseid",
         ['modulelevel' => CONTEXT_MODULE, 'courseid' => $course->id]
     );
+    $modulecontextids = array_map('intval', $modulecontextids);
 
     return array_values(array_unique(array_merge($contextids, $modulecontextids)));
 }
